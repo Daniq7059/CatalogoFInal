@@ -77,32 +77,26 @@ export const uploadProjectImage = async (file, token) => {
 };
 
 // 🔹 **Crear un proyecto con imagen**
-export const createProject = async (projectData, file, token) => {
-  try {
-    if (!projectData.title || !projectData.category || !file) {
-      throw new Error('Todos los campos son obligatorios');
-    }
-
-    const formData = new FormData();
-    formData.append("title", projectData.title);
-    formData.append("category", projectData.category);
-    formData.append("description", projectData.description || "");
-    formData.append("section_id", projectData.section_id); // 🔹 Asegurar que section_id se envíe
-    formData.append("image", file); // 🔹 Enviar el archivo corr
-
-    const response = await api.post('/projects', formData, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "multipart/form-data",
-      },
-    });
-
-    return response.data;
-  } catch (err) {
-    console.error('❌ Error al crear proyecto:', err);
-    throw err;
+export const createProject = async (projectData, imageFile, token) => {
+  const formData = new FormData();
+  formData.append("title", projectData.title);
+  formData.append("description", projectData.description || "");
+  formData.append("section_id", String(projectData.section_id));
+  formData.append("category", projectData.category);
+  if (imageFile) {
+    formData.append("image", imageFile);
   }
+
+  const response = await axios.post("http://localhost:5000/api/projects", formData, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "multipart/form-data",
+    },
+  });
+
+  return response.data;
 };
+
 
 // 🔹 **Actualizar un proyecto (incluye cambio de imagen)**
 export const updateProject = async (id, projectData, file, token) => {
@@ -118,7 +112,7 @@ export const updateProject = async (id, projectData, file, token) => {
       formData.append("image", file);
     }
 
-    const response = await api.put(`/projects/${id}`, formData, {
+    const response = await (`/projects/${id}`, formData, {
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "multipart/form-data",
@@ -181,14 +175,13 @@ export const getSections = async () => {
   console.log("Respuesta de la API:", response);
   return response;
 };
-export const createSection = async (nameObj, token) => {
-  if (!nameObj || !nameObj.name || !nameObj.image) {
-    throw new Error('El nombre y el icono son obligatorios');
-  }
-
+// api.js
+// ...
+export const createSection = async (sections, token) => {
+  // sectionData: { name: "Fin de la pobreza" }
   try {
-    const response = await api.post('/sections', 
-      { name: nameObj.name, icon: nameObj.image }, 
+    const response = await api.post('/sections',
+      { name: sections.name },
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -196,7 +189,6 @@ export const createSection = async (nameObj, token) => {
         },
       }
     );
-
     return response.data;
   } catch (err) {
     console.error('❌ Error al crear sección:', err.response?.data || err.message);
@@ -685,5 +677,7 @@ export const updateResearch = async (projectId, researchId, data, token) => {
   return makeRequest('put', `/projects/${projectId}/investigaciones/${researchId}`, data, token);
 };
 export const deleteResearch = async (projectId, researchId, token) => {
-  return makeRequest('delete', `/projects/${projectId}/investigaciones/${researchId}`, {}, token);
+  return makeRequest('delete', `/projects/${projectId}/investigaciones/${researchId}`, {}, token); 
 };
+
+

@@ -1,7 +1,6 @@
 import React, { useRef, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ProjectCard } from "./ProjectCard";
-import { motion, AnimatePresence } from "framer-motion";
 import { ODS_CATEGORIES } from "./ODSSelectorModal";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 
@@ -12,17 +11,19 @@ interface Project {
   image: string;
   description?: string;
   section_id?: string;
+  odsIcon?: string;
+  odsColor?: string;
 }
 
 interface ProjectSection {
   id: string;
   name: string;
   image_url?: string;
+  odsId?: number;
 }
 
 interface ProjectSliderProps {
-  sections: ProjectSection[];
-  title?: string;
+  section: ProjectSection;
   projects: Project[];
   onDeleteProject?: (projectId: string) => void;
   onEditProject?: (project: Project) => void;
@@ -30,166 +31,178 @@ interface ProjectSliderProps {
 }
 
 export const ProjectSlider: React.FC<ProjectSliderProps> = ({
-  title,
-  sections,
+  section,
   projects,
   onDeleteProject,
   onEditProject,
   isAdmin,
 }) => {
   const navigate = useNavigate();
-
-  // Referencia al contenedor que hace scroll horizontal
   const carouselRef = useRef<HTMLDivElement>(null);
 
-  // Índice de la “tarjeta actual”
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [cardsPerView, setCardsPerView] = useState(1);
 
-  // Función auxiliar para extraer el ícono de ODS
-  const extractIconName = (url: string) => {
-    const match = url.match(/(Fa[A-Za-z0-9]+)$/);
-    return match ? match[1] : "FaQuestionCircle";
-  };
+  const CARD_WIDTH = 300;
+  const GAP = 16;
+  const cardTotalWidth = CARD_WIDTH + GAP;
 
-  // Al hacer clic en una tarjeta => ir a detalle
-  const handleProjectClick = (project: Project) => {
-    navigate(`/project/${project.id}`, { state: { project } });
-  };
+  // Buscar el ODS que coincida con el nombre de la sección (opcional)
+  const odsCategory = ODS_CATEGORIES.find(
+    (ods) => ods.title.toLowerCase() === section.name.toLowerCase()
+  );
 
-  // Calcular scroll en base a la posición (currentIndex)
-  const scrollToIndex = (index: number) => {
+  useEffect(() => {
+    const updateCardsPerView = () => {
+      if (!carouselRef.current) return;
+      const containerWidth = carouselRef.current.clientWidth;
+      const newCardsPerView = Math.floor(containerWidth / cardTotalWidth);
+      setCardsPerView(newCardsPerView || 1);
+    };
+
+    updateCardsPerView();
+    window.addEventListener("resize", updateCardsPerView);
+    return () => window.removeEventListener("resize", updateCardsPerView);
+  }, [cardTotalWidth]);
+
+  useEffect(() => {
     if (!carouselRef.current) return;
-
-    // Ajusta el ancho de tus tarjetas y el gap (spacing)
-    const CARD_WIDTH = 240; // px
-    const GAP = 16;         // gap-4 => 16px
-
-    const scrollPosition = index * (CARD_WIDTH + GAP);
+    const scrollPosition = currentIndex * cardTotalWidth;
     carouselRef.current.scrollTo({
       left: scrollPosition,
       behavior: "smooth",
     });
-  };
+  }, [currentIndex, cardTotalWidth]);
 
-  // Cada vez que cambie el currentIndex, movemos el scroll
-  useEffect(() => {
-    scrollToIndex(currentIndex);
-  }, [currentIndex]);
-
-  // Funciones para ir a la tarjeta anterior / siguiente
   const handlePrev = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex((prev) => prev - 1);
-    }
+    setCurrentIndex((prev) => {
+      const nextIndex = prev - cardsPerView;
+      return nextIndex < 0 ? 0 : nextIndex;
+    });
   };
 
   const handleNext = () => {
-    if (currentIndex < projects.length - 1) {
-      setCurrentIndex((prev) => prev + 1);
-    }
+    const maxIndex = projects.length - cardsPerView;
+    setCurrentIndex((prev) => {
+      const nextIndex = prev + cardsPerView;
+      return nextIndex > maxIndex ? maxIndex : nextIndex;
+    });
   };
 
+  const showPrevArrow = currentIndex > 0;
+  const showNextArrow = currentIndex < projects.length - cardsPerView;
+
+  const handleProjectClick = (project: Project) => {
+    navigate(`/project/${project.id}`, { state: { project } });
+  };
+
+  if (!projects || projects.length === 0) {
+    return null;
+  }
+
   return (
-    <section className="py-10 px-4 md:px-8 lg:px-16 relative">
-      {title && (
-        <motion.h2
-          className="text-2xl md:text-3xl font-bold mb-6 text-gray-800"
-          initial={{ opacity: 0, x: -30 }}
-          whileInView={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.6 }}
-        >
-          {title}
-        </motion.h2>
-      )}
+    <section className="relative my-8">
+      <h2 className="text-2xl md:text-3xl font-bold mb-6 text-gray-800">
+        {odsCategory?.title || section.name || "Proyectos"}
+      </h2>
 
-      {/* Contenedor principal del carrusel */}
-      <div
-        ref={carouselRef}
-        className="relative w-full overflow-x-auto overflow-y-hidden scrollbar-hide"
-      >
-        <div className="flex gap-4">
-          <AnimatePresence>
-            {projects.map((project) => {
-              const section = sections.find((s) => s.id === project.section_id);
-              const odsCategory = ODS_CATEGORIES.find(
-                (ods) => ods.title === section?.name
-              );
-
-              return (
-                <motion.div
-                  key={project.id}
-                  initial={{ opacity: 0, y: 40 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -40 }}
-                  transition={{ duration: 0.5 }}
-                  onClick={() => handleProjectClick(project)}
-                  className="
-                    flex-shrink-0 w-[240px] relative cursor-pointer
-                    group
-                    transition-transform duration-300 ease-in-out
-                    hover:z-20 hover:scale-105
-                  "
-                >
-                  <ProjectCard
-                    title={project.title}
-                    category={odsCategory?.title || project.category}
-                    image={project.image}
-                    odsIcon={extractIconName(section?.image_url || "")}
-                    odsColor={odsCategory?.color || "#000000"}
-                  />
-
-                  {/* Botones de edición/eliminación (solo si esAdmin) */}
-                  {isAdmin && (
-                    <div className="mt-2 flex gap-2 justify-end">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDeleteProject && onDeleteProject(project.id);
-                        }}
-                        className="px-3 py-1 bg-red-100 text-red-600 rounded hover:bg-red-200 text-sm"
-                      >
-                        Eliminar
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onEditProject && onEditProject(project);
-                        }}
-                        className="px-3 py-1 bg-gray-100 text-gray-800 rounded hover:bg-gray-200 text-sm"
-                      >
-                        Editar
-                      </button>
-                    </div>
-                  )}
-                </motion.div>
-              );
-            })}
-          </AnimatePresence>
-        </div>
-      </div>
-
-      {/* Flecha izquierda */}
-      {currentIndex > 0 && (
+      {showPrevArrow && (
         <button
           onClick={handlePrev}
           className="
-            absolute left-0 top-1/2 -translate-y-1/2 
-            p-2 rounded-full bg-white text-gray-700 shadow
-            hover:bg-gray-200
+            absolute left-0 top-1/2
+            -translate-y-1/2 p-2
+            rounded-full bg-white
+            text-gray-700 shadow
+            hover:bg-gray-200 z-10
           "
         >
           <FaChevronLeft size={20} />
         </button>
       )}
 
-      {/* Flecha derecha */}
-      {currentIndex < projects.length - 1 && (
+      <div
+        ref={carouselRef}
+        className="
+          relative w-full
+          whitespace-nowrap
+          scroll-smooth
+          no-scrollbar
+          overflow-x-hidden
+        "
+      >
+        <div className="inline-flex" style={{ gap: `${GAP}px` }}>
+          {projects.map((project) => (
+            <div
+              key={project.id}
+              onClick={() => handleProjectClick(project)}
+              className="
+                inline-block
+                w-[300px]
+                cursor-pointer
+                group
+                relative
+                z-0
+                origin-bottom
+                transition-transform
+                duration-1000
+                ease-in-out
+                hover:z-10
+                hover:scale-101
+              "
+            >
+              <ProjectCard
+                title={project.title}
+                category={project.category}
+                image={project.image}
+                odsIcon={project.odsIcon ?? ""}
+                odsColor={project.odsColor ?? "#000000"}
+              />
+
+              {isAdmin && (
+                <div
+                  className="
+                    mt-2 flex gap-2 justify-start
+                    absolute bottom-0 left-0 right-0 p-2
+                    hover:scale-101
+                    rounded-b-lg
+                    z-20
+                  "
+                >
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteProject?.(project.id);
+                    }}
+                    className="px-2 py-1 bg-red-100 text-red-600 rounded hover:bg-red-200 text-s"
+                  >
+                    Eliminar
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEditProject?.(project);
+                    }}
+                    className="px-2 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200 text-s"
+                  >
+                    Editar
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {showNextArrow && (
         <button
           onClick={handleNext}
           className="
-            absolute right-0 top-1/2 -translate-y-1/2
-            p-2 rounded-full bg-white text-gray-700 shadow
-            hover:bg-gray-200
+            absolute right-0 top-1/2
+            -translate-y-1/2 p-2
+            rounded-full bg-white
+            text-gray-700 shadow
+            hover:bg-gray-200 z-10
           "
         >
           <FaChevronRight size={20} />

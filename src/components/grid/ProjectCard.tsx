@@ -1,3 +1,4 @@
+// ProjectCard.tsx
 import * as AllIcons from "react-icons/fa";
 import { FaArrowRight } from "react-icons/fa";
 
@@ -5,8 +6,9 @@ interface ProjectCardProps {
   title: string;
   category: string;
   image: string;
-  odsIcon: string;
-  odsColor: string;
+  odsIcon?: string;
+  odsColor?: string;
+  odsId?: number;
   onClick?: () => void;
 }
 
@@ -27,52 +29,54 @@ export const ProjectCard = ({
   title,
   category,
   image,
-  odsIcon,
-  odsColor,
+  odsIcon = "",
+  odsColor = "#000",
   onClick,
 }: ProjectCardProps) => {
   return (
     <div
-      // Contenedor principal “tipo Netflix”
-      // Se agranda (scale) al hacer hover
       className="
-        group relative w-full rounded-xl aspect-[4/3] overflow-hidden
+        group relative w-full rounded-xl aspect-[4/3] overflow-visible
         shadow-md bg-gray-100 cursor-pointer
         transition-transform duration-300
         hover:scale-105 hover:z-20
       "
       onClick={onClick}
     >
-      {/* Imagen de fondo con “zoom” adicional al hover */}
       <img
         src={image}
         alt={title}
         className="
+          rounded-xl
+          absolute inset-0
           w-full h-full object-cover
           transition-transform duration-300
-          group-hover:scale-110
+          group-hover:scale-101
+          hover:rounded-xl
+          overflow-hidden
         "
       />
-
-      {/* Capa oscura, aparece al hover */}
       <div
         className="
-          absolute inset-0 bg-black/50 
-          opacity-0 group-hover:opacity-100
-          transition-opacity duration-300
+          absolute inset-0
+          bg-black/50
+          opacity-0
+          group-hover:opacity-100
+          transition-opacity
+          duration-300
           z-10
+          hover:scale-101
+          hover:-translate-y-2
+          rounded-xl
         "
       />
-
-      {/* Contenido */}
       <div
         className="
-          absolute inset-0 z-20 p-4 flex flex-col justify-between 
-          opacity-0 group-hover:opacity-100 
+          absolute inset-0 z-20 p-4 flex flex-col justify-between
+          opacity-0 group-hover:opacity-100
           transition-opacity duration-300
         "
       >
-        {/* Título, categoría e ícono */}
         <div className="flex justify-between items-start">
           <div>
             <h3 className="text-white font-bold text-lg">{title}</h3>
@@ -82,13 +86,11 @@ export const ProjectCard = ({
             <DynamicIcon name={odsIcon} color={odsColor} size={24} />
           </div>
         </div>
-
-        {/* Botón */}
         <div className="flex justify-end">
           <button
             className="
-              flex items-center gap-2 px-4 py-2 
-              bg-white/90 text-gray-900 hover:bg-white 
+              flex items-center gap-2 px-4 py-2
+              bg-white/90 text-gray-900 hover:bg-white
               transition rounded-full text-sm font-medium shadow
             "
           >

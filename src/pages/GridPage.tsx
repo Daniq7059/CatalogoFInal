@@ -1,3 +1,4 @@
+// GridPage.tsx
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { HeroGrid } from "../components/grid/HeroGrid";
@@ -24,7 +25,7 @@ import { useNavigate } from "react-router-dom";
 interface Project {
   id: string;
   title: string;
-  section_id: string;
+  section_id: string | null;
   category: string;
   image: string;
   description?: string;
@@ -32,54 +33,75 @@ interface Project {
 
 interface ProjectSection {
   id: string;
-  name: string;
-  odsId?: number; // Asegúrate de que esta propiedad esté definida
+  name: string; // Almacena el título ODS (ej. "Fin de la pobreza")
   projects: Project[];
 }
 
 export default function GridPage() {
   const { user, token, logout } = useAuth();
+  const navigate = useNavigate();
+
   const [sections, setSections] = useState<ProjectSection[]>([]);
 
-  const [showAddODSModal, setShowAddODSModal] = useState(false);
-  const [showODSFilterModal, setShowODSFilterModal] = useState(false);
-  const [selectedODSIds, setSelectedODSIds] = useState<number[]>([]);
-  const [selectedSectionId, setSelectedSectionId] = useState<string | null>(
-    null
-  );
+  // 🔸 Arreglo de strings
+  const [selectedODSTitles, setSelectedODSTitles] = useState<string[]>([]);
+
+  const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
   const [showAddProjectModal, setShowAddProjectModal] = useState(false);
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
+
+  // Datos del nuevo/edición de proyecto
   const [newProject, setNewProject] = useState<Partial<Project>>({
     title: "",
-    section_id: "",
+    section_id: null,
     category: "",
     image: "",
     description: "",
   });
+
+  const [showAddODSModal, setShowAddODSModal] = useState(false);
+  const [showODSFilterModal, setShowODSFilterModal] = useState(false);
+
+  // Para manejar la imagen del proyecto
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
-  const navigate = useNavigate();
 
-  const handleProjectClick = (project: Project) => {
-    navigate(`/project/${project.id}`, { state: { project } });
-  };
+  // Categorías ejemplo para el combo de proyecto
+  const categories = [
+    "Fin de la pobreza",
+    "Hambre cero",
+    "Paz, justicia e instituciones sólidas",
+    "Salud y bienestar",
+    "Educación de calidad",
+    "Igualdad de género",
+    "Agua limpia y saneamiento",
+    "Energía asequible y no contaminante",
+    "Trabajo decente y crecimiento económico",
+    "Industria, innovación e infraestructura",
+    "Reducción de las desigualdades",
+    "Ciudades y comunidades sostenibles",
+    "Producción y consumo responsables",
+    "Acción por el clima",
+    "Vida submarina",
+    "Alianzas para lograr los objetivos",
+    "Vida de ecosistemas terrestres",
+  ];
 
   useEffect(() => {
     fetchSections();
   }, []);
-  // En fetchSections dentro de GridPage.tsx
+
   const fetchSections = async () => {
     try {
       const sectionsData = await getSections();
       const projectsData = await getProjects();
 
+      // Formateamos las secciones
       const formattedSections = sectionsData.map((section: any) => {
-        // Limpiar el campo image si viene como URL
         let cleanImage = section.image;
         if (cleanImage && cleanImage.includes("http://localhost:5000")) {
           cleanImage = cleanImage.replace("http://localhost:5000", "");
         }
-
         return {
           ...section,
           image: cleanImage,
@@ -88,73 +110,33 @@ export default function GridPage() {
           ),
         };
       });
-
-      console.log("Secciones procesadas:", formattedSections);
       setSections(formattedSections);
     } catch (error) {
       console.error("Error al obtener secciones:", error);
     }
   };
-  const handleAddODS = async (ods: (typeof ODS_CATEGORIES)[number]) => {
+
+  // ✅ Manejo de "Agregar ODS" => crear nueva sección con name = odsTitle
+  //    (Porque en tu BD, 'name' es la columna que guarda el ODS)
+  const handleAddODS = async (odsTitle: string) => {
+    if (!token) return;
     try {
-      // 1. Validar que la ODS tenga título
-      if (!ods?.title) {
-        throw new Error("ODS no válida: falta título");
-      }
-
-      // 2. Verificar si ya existe
-      const exists = sections.some((s) => s.name === ods.title);
-      if (exists) {
-        alert("Esta ODS ya está registrada");
-        return;
-      }
-
-      // 3. Extraer el nombre del icono (ej: "FaHandHoldingHeart")
-      const iconName = ods.icon.type.name;
-
-      // 4. Enviar al backend
-      const response = await createSection(
-        {
-          name: ods.title, // Nombre de la ODS
-          image: iconName, // Nombre del icono
-          odsId: ods.id, // ID de referencia
-        },
-        token
-      );
-
-      // 5. Actualizar estado y cerrar modal
-      fetchSections();
+      // Creamos la sección => { name: "Fin de la pobreza" }, etc.
+      await createSection({ name: odsTitle }, token);
+      await fetchSections();
       setShowAddODSModal(false);
     } catch (error) {
-      console.error("Error detallado:", {
-        error,
-        requestData: {
-          name: ods?.title,
-          image: ods?.icon?.type?.name,
-        },
-      });
-      alert(
-        `Error al agregar ODS: ${
-          error.response?.data?.message || error.message
-        }`
-      );
+      console.error("Error al crear ODS:", error);
     }
   };
 
-  const toggleODSFilter = (odsId: number) => {
-    setSelectedODSIds((prev) =>
-      prev.includes(odsId)
-        ? prev.filter((id) => id !== odsId)
-        : [...prev, odsId]
+  // 🔸 Togglear strings en selectedODSTitles
+  const toggleODSFilter = (odsTitle: string) => {
+    setSelectedODSTitles((prev) =>
+      prev.includes(odsTitle)
+        ? prev.filter((title) => title !== odsTitle)
+        : [...prev, odsTitle]
     );
-  };
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setSelectedImage(file);
-      setImagePreview(URL.createObjectURL(file));
-    }
   };
 
   const handleDeleteSection = async (sectionId: string) => {
@@ -167,14 +149,8 @@ export default function GridPage() {
     }
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
-  };
-
   const handleDeleteProject = async (projectId: string) => {
     if (!window.confirm("¿Estás seguro de eliminar este proyecto?")) return;
-
     try {
       const projectExists = sections.some((section) =>
         section.projects.some((p) => p.id === projectId)
@@ -183,7 +159,6 @@ export default function GridPage() {
         alert("El proyecto ya no existe.");
         return;
       }
-
       await deleteProject(projectId, token);
       fetchSections();
     } catch (error) {
@@ -191,63 +166,50 @@ export default function GridPage() {
     }
   };
 
+  // ✅ Crear/Actualizar proyectos
   const handleSaveProject = async () => {
-    if (
-      !newProject.title ||
-      !selectedSectionId ||
-      !newProject.category ||
-      !newProject.description
-    ) {
-      alert("Completa todos los campos antes de guardar.");
-      return;
-    }
-
+    if (!token) return;
+  
     try {
-      if (editingProjectId) {
-        const projectExists = sections.some((section) =>
-          section.projects.some((p) => p.id === editingProjectId)
-        );
-        if (!projectExists) {
-          alert("El proyecto no existe.");
-          setEditingProjectId(null);
-          return;
-        }
-
-        await updateProject(
-          editingProjectId,
-          {
-            title: newProject.title,
-            category: newProject.category,
-            description: newProject.description,
-            section_id: selectedSectionId,
-          },
-          selectedImage,
-          token
-        );
-      } else {
-        await createProject(
-          {
-            title: newProject.title,
-            category: newProject.category,
-            description: newProject.description,
-            section_id: selectedSectionId,
-          },
-          selectedImage,
-          token
-        );
+      const projectData: Partial<Project> = {
+        ...newProject,
+        section_id: selectedSectionId,
+      };
+  
+      // 🔍 Validación básica
+      if (
+        !projectData.title ||
+        !projectData.category ||
+        !projectData.section_id ||
+        !selectedImage
+      ) {
+        alert("⚠ Por favor, completa todos los campos obligatorios (título, categoría, sección y subir imagen).");
+        return;
       }
-
+  
+      if (editingProjectId) {
+        await updateProject(editingProjectId, projectData, selectedImage, token);
+      } else {
+        await createProject(projectData, selectedImage, token);
+      }
+  
+      await fetchSections();
       setShowAddProjectModal(false);
-      setNewProject({ title: "", category: "", description: "", image: "" });
+      setEditingProjectId(null);
       setImagePreview(null);
       setSelectedImage(null);
-      setEditingProjectId(null);
-      fetchSections();
+      setNewProject({
+        title: "",
+        section_id: null,
+        category: "",
+        image: "",
+        description: "",
+      });
     } catch (error) {
-      console.error("❌ Error al guardar proyecto:", error);
+      console.error("Error al guardar el proyecto:", error);
     }
   };
-
+  
   const handleEditProject = (project: Project) => {
     setNewProject({
       title: project.title,
@@ -256,7 +218,6 @@ export default function GridPage() {
       section_id: project.section_id,
       image: project.image,
     });
-
     setEditingProjectId(project.id);
     setSelectedSectionId(project.section_id);
 
@@ -268,22 +229,35 @@ export default function GridPage() {
     setShowAddProjectModal(true);
   };
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setSelectedImage(file);
+      setImagePreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
+  const heroImages = sections
+  .flatMap((section) => section.projects.map((p) => p.image))
+  .filter(Boolean);
   return (
-    <main className="overflow-hidden">
-      {/* Hero */}
+    <main className="overflow-visible">
       <HeroGrid
         title="Innovación en Ingeniería"
         description="Soluciones tecnológicas que transforman la industria moderna"
-        backgroundImage="/public/assets/images/herocon.jpg"
-      />
+        backgroundImages={heroImages} // <- aquí pasa la lista
+        />
 
-      {/* Botones de filtrado por ODS */}
+      {/* Botones de filtro ODS */}
       <section className="flex justify-center gap-4 px-4 mt-6 mb-0">
-        {/* Botón "Todas las ODS" */}
         <button
-          onClick={() => setSelectedODSIds([])}
+          onClick={() => setSelectedODSTitles([])}
           className={`px-6 py-4 rounded-lg text-lg transition-all ${
-            selectedODSIds.length === 0
+            selectedODSTitles.length === 0
               ? "bg-[var(--color-primario)] text-white"
               : "bg-white text-gray-700 ring-2 ring-[var(--color-primario)]"
           }`}
@@ -291,30 +265,56 @@ export default function GridPage() {
           Todas las ODS
         </button>
 
-        {/* Botón "Filtrar ODS" */}
         <button
           onClick={() => setShowODSFilterModal(true)}
           className={`px-6 py-4 rounded-lg text-lg transition-all ${
-            selectedODSIds.length > 0
+            selectedODSTitles.length > 0
               ? "bg-[var(--color-primario)] text-white"
               : "bg-white text-gray-700 ring-2 ring-[var(--color-primario)]"
           }`}
         >
           Filtrar ODS
         </button>
+
+        {user?.role === "admin" && (
+          <div className="flex justify-end p-4">
+            <button
+             onClick={() => {
+              if (sections.length === 0) {
+                alert("⚠ No hay ODS registradas. Primero crea una.");
+                return;
+              }
+            
+              setSelectedSectionId(sections[0].id); // selecciona la primera sección
+              setNewProject({
+                title: "",
+                section_id: sections[0].id,
+                category: "",
+                image: "",
+                description: "",
+              });
+              setShowAddProjectModal(true);
+            }}
+            
+              className="p-2 bg-blue-500 text-white rounded-full hover:bg-blue-700 transition"
+            >
+              <FiPlus className="text-xl" />
+            </button>
+          </div>
+        )}
       </section>
 
-      {/* Renderizar Secciones */}
+      {/* Render de secciones/proyectos con filtro */}
       <AnimatePresence>
         {sections
           .filter((section) => {
-            if (selectedODSIds.length === 0) return true;
-
-            const odsCategory = ODS_CATEGORIES.find(
-              (ods) => ods.id === selectedODSIds.find((id) => id === ods.id)
-            );
-            return odsCategory?.title === section.name;
+            // Si no hay filtros => true
+            if (selectedODSTitles.length === 0) return true;
+            // Filtrar si section.name está en selectedODSTitles
+            return selectedODSTitles.includes(section.name);
           })
+          // Opcional: filtrar secciones sin proyectos
+          .filter((section) => section.projects && section.projects.length > 0)
           .map((section) => (
             <motion.div
               key={section.id}
@@ -322,37 +322,10 @@ export default function GridPage() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -30 }}
               transition={{ duration: 0.4 }}
-              className="relative p-6 border-b border-gray-300"
+              className="relative p-6 overflow-visible"
             >
-              {user?.role === "admin" && (
-                <div className="absolute top-4 right-4 flex gap-2">
-                  <button
-                    onClick={() => handleDeleteSection(section.id)}
-                    className="p-2 bg-red-500 text-white rounded-full hover:bg-red-700 transition"
-                  >
-                    <FiTrash className="text-xl" />
-                  </button>
-                  <button
-                    onClick={() => {
-                      setSelectedSectionId(section.id);
-                      setNewProject({
-                        title: "",
-                        section_id: section.id,
-                        category: section.name,
-                        image: "",
-                        description: "",
-                      });
-                      setShowAddProjectModal(true);
-                    }}
-                    className="p-2 bg-blue-500 text-white rounded-full hover:bg-blue-700 transition"
-                  >
-                    <FiPlus className="text-xl" />
-                  </button>
-                </div>
-              )}
-
               <ProjectSlider
-                sections={sections}
+                section={section}
                 projects={section.projects}
                 onDeleteProject={handleDeleteProject}
                 onEditProject={handleEditProject}
@@ -362,7 +335,7 @@ export default function GridPage() {
           ))}
       </AnimatePresence>
 
-      {/* Botón Agregar ODS */}
+      {/* Botón Agregar ODS (admin) */}
       {user?.role === "admin" && (
         <button
           onClick={() => setShowAddODSModal(true)}
@@ -372,37 +345,34 @@ export default function GridPage() {
         </button>
       )}
 
+      {/* Modal Crear ODS (seleccionar ODS) */}
       <ODSSelectorModal
         isOpen={showAddODSModal}
         onClose={() => setShowAddODSModal(false)}
-        onSelect={handleAddODS}
+        onSelect={handleAddODS} // handleAddODS(odsTitle)
+        // NOTE: No necesitamos selectedODSs en modo "create"
         mode="create"
       />
 
+      {/* Modal Filtrar ODS => pasamos selectedODSTitles en vez de selectedODSIds */}
       <ODSSelectorModal
         isOpen={showODSFilterModal}
         onClose={() => setShowODSFilterModal(false)}
-        onSelect={(ods) => {
-          toggleODSFilter(ods.id);
-        }}
-        selectedODSs={selectedODSIds}
-        onClearFilters={() => setSelectedODSIds([])}
+        onSelect={(odsTitle) => toggleODSFilter(odsTitle)} // togglear string
+        selectedODSs={selectedODSTitles}
+        onClearFilters={() => setSelectedODSTitles([])}
         mode="filter"
       />
 
-      {/* Botón flotante para iniciar sesión */}
+      {/* Botón flotante Logout/Login */}
       <button
         onClick={user ? handleLogout : () => navigate("/login")}
         className="fixed bottom-4 right-4 p-4 bg-[var(--color-primario)] text-white rounded-full shadow-lg hover:bg-[#5a2fc2] transition"
       >
-        {user ? (
-          <FiLogOut className="text-2xl" />
-        ) : (
-          <FiLogIn className="text-2xl" />
-        )}
+        {user ? <FiLogOut className="text-2xl" /> : <FiLogIn className="text-2xl" />}
       </button>
 
-      {/* Modales para agregar/editar proyectos y secciones */}
+      {/* Modal Agregar/Editar Proyectos */}
       {showAddProjectModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <motion.div
@@ -415,6 +385,15 @@ export default function GridPage() {
               onClick={() => {
                 setShowAddProjectModal(false);
                 setEditingProjectId(null);
+                setNewProject({
+                  title: "",
+                  section_id: null,
+                  category: "",
+                  image: "",
+                  description: "",
+                });
+                setImagePreview(null);
+                setSelectedImage(null);
               }}
               className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-xl"
             >
@@ -432,24 +411,46 @@ export default function GridPage() {
 
             <input
               placeholder="Título"
-              className="w-full p-3 border focus:outline-0 border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--color-primario)] focus:border-transparent text-lg"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--color-primario)] text-lg"
               value={newProject.title ?? ""}
               onChange={(e) =>
                 setNewProject({ ...newProject, title: e.target.value })
               }
             />
 
-            <input
-              placeholder="Categoría"
-              className="w-full p-3 border focus:outline-0 border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--color-primario)] focus:border-transparent text-lg"
-              value={newProject.category ?? ""}
-              onChange={(e) =>
-                setNewProject({ ...newProject, category: e.target.value })
-              }
-            />
+<select
+  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--color-primario)] text-lg"
+  value={newProject.category ?? ""}
+  onChange={(e) => {
+    const selectedCategory = e.target.value;
+
+    // 🔍 Buscar sección que coincida con el nombre de la categoría
+    const matchingSection = sections.find((section) => section.name === selectedCategory);
+
+    // 🔄 Actualizar categoría y sección correspondiente
+    setNewProject((prev) => ({
+      ...prev,
+      category: selectedCategory,
+    }));
+
+    if (matchingSection) {
+      setSelectedSectionId(matchingSection.id);
+    } else {
+      setSelectedSectionId(null); // Si no se encuentra, se borra la sección
+    }
+  }}
+>
+  <option value="">Selecciona una categoría</option>
+  {categories.map((cat) => (
+    <option key={cat} value={cat}>
+      {cat}
+    </option>
+  ))}
+</select>
+
 
             <div className="flex flex-col items-center">
-              <label className="w-full p-3 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors text-center">
+              <label className="w-full p-3 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 text-center">
                 <span className="text-gray-600">Subir imagen (opcional)</span>
                 <input
                   type="file"
@@ -458,7 +459,6 @@ export default function GridPage() {
                   className="hidden"
                 />
               </label>
-
               {imagePreview && (
                 <img
                   src={imagePreview}
@@ -470,7 +470,7 @@ export default function GridPage() {
 
             <textarea
               placeholder="Descripción"
-              className="w-full p-3 border focus:outline-0 border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--color-primario)] focus:border-transparent text-lg"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--color-primario)] text-lg"
               rows={4}
               value={newProject.description ?? ""}
               onChange={(e) =>
@@ -483,14 +483,23 @@ export default function GridPage() {
                 onClick={() => {
                   setShowAddProjectModal(false);
                   setEditingProjectId(null);
+                  setNewProject({
+                    title: "",
+                    section_id: null,
+                    category: "",
+                    image: "",
+                    description: "",
+                  });
+                  setImagePreview(null);
+                  setSelectedImage(null);
                 }}
-                className="px-5 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors text-lg"
+                className="px-5 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 text-lg"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleSaveProject}
-                className="px-5 py-2 bg-[var(--color-primario)] text-white rounded-lg hover:bg-[#5a2fc2] transition-colors text-lg"
+                className="px-5 py-2 bg-[var(--color-primario)] text-white rounded-lg hover:bg-[#5a2fc2] text-lg"
               >
                 {editingProjectId ? "Actualizar" : "Guardar"}
               </button>

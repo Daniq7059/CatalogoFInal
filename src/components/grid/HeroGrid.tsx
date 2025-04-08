@@ -1,6 +1,6 @@
 // HeroGrid.tsx
+import { useEffect, useState, ReactNode } from "react";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
-import { ReactNode, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faEdit,
@@ -9,34 +9,73 @@ import {
   faUpload,
 } from "@fortawesome/free-solid-svg-icons";
 
-interface HeroSectionProps {
+interface Project {
+  id: string;
   title: string;
-  description: string;
-  backgroundImage: string;
+  image: string;
+  // otros campos que uses...
+}
+
+interface HeroSectionProps {
+  title?: string;
+  description?: string;
+  backgroundImage?: string;
+  backgroundImages?: string[]; // <-- Añadido
   ctaButtons?: ReactNode;
   isAdmin?: boolean;
   onSave?: (newData: { title: string; description: string; image: string }) => void;
 }
 
-export const HeroGrid = ({
-  title,
-  description,
-  backgroundImage,
+export const HeroGrid: React.FC<HeroSectionProps> = ({
+  title = "Título por defecto",
+  description = "Descripción por defecto",
+  backgroundImage = "",
+  backgroundImages = [], // asegúrate que este prop tenga valor por defecto
   ctaButtons,
   isAdmin = false,
   onSave,
-}: HeroSectionProps) => {
+}) => {
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [featuredProject, setFeaturedProject] = useState<Project | null>(null);
+  const [currentIndex, setCurrentIndex] = useState(0); // 👈 antes del useEffect
+  const imageList = backgroundImages.filter(Boolean);   // 👈 ANTES del useEffect
+  useEffect(() => {
+    if (imageList.length <= 1) return;
+
+    const interval = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % imageList.length);
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [imageList]);
+
+  // 🔄 Carrusel automático
+  useEffect(() => {
+    if (imageList.length <= 1) return;
+  
+    const interval = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % imageList.length);
+    }, 5000);
+  
+    return () => clearInterval(interval);
+  }, [imageList]);
+  
+
+  // Estados de edición
   const [isEditing, setIsEditing] = useState(false);
   const [updatedTitle, setUpdatedTitle] = useState(title);
   const [updatedDescription, setUpdatedDescription] = useState(description);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  
 
+  
+  // Manejo de imagen (simulado)
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setIsUploading(true);
       const file = e.target.files[0];
-      // Simular carga de imagen
+      // Simular subida
       await new Promise((resolve) => setTimeout(resolve, 1000));
       const url = URL.createObjectURL(file);
       setImagePreview(url);
@@ -44,16 +83,17 @@ export const HeroGrid = ({
     }
   };
 
+  // Guardar cambios
   const handleSave = () => {
     if (updatedTitle.trim() && updatedDescription.trim()) {
       onSave?.({
         title: updatedTitle,
         description: updatedDescription,
-        image: imagePreview || backgroundImage,
+        image: imagePreview || featuredProject?.image || backgroundImage,
       });
       setIsEditing(false);
     } else {
-      // Animación de error en caso de campos vacíos
+      // Manejo de error en caso de campos vacíos
       document.querySelectorAll(".hero-edit-input").forEach((input) => {
         if (!(input as HTMLInputElement).value) {
           input.parentElement?.classList.add("animate-shake");
@@ -66,22 +106,16 @@ export const HeroGrid = ({
     }
   };
 
-  /* 
-   * Variants para un contenedor principal, 
-   * para lograr una animación de stagger (retardo secuencial) 
-   * en los elementos hijos.
-   */
   const containerVariants = {
-    hidden: { opacity: 1 }, // puede estar visible pero con hijos ocultos
+    hidden: { opacity: 1 },
     show: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.25, // retardo al mostrar cada hijo
+        staggerChildren: 0.25,
       },
     },
   };
 
-  // Variants para el fondo: fade + scale in
   const backgroundVariants = {
     hidden: { opacity: 0, scale: 1.2 },
     show: {
@@ -91,8 +125,6 @@ export const HeroGrid = ({
     },
   };
 
-  // Variants para el texto (título, descripción): 
-  // un poquito de rotación y fade in, para más impacto
   const itemVariants = {
     hidden: { opacity: 0, y: 80, rotate: -3 },
     show: {
@@ -104,12 +136,15 @@ export const HeroGrid = ({
     exit: { opacity: 0, y: -40 },
   };
 
+  const currentBackground = imagePreview || imageList[currentIndex] || backgroundImage;
+  const currentTitle = updatedTitle;
+  const currentDescription = updatedDescription;
+  
   return (
-    <section className="relative h-[50vh] flex items-center justify-start text-left text-white overflow-hidden px-4 ">
-      {/* Capa de fondo con animación de escala */}
+    <section className="relative h-[60vh] flex items-center justify-start text-left text-white overflow-hidden px-4">
       <motion.div
         className="absolute inset-0 bg-cover bg-center z-0"
-        style={{ backgroundImage: `url('${imagePreview || backgroundImage}')` }}
+        style={{ backgroundImage: `url('${currentBackground}')` }}
         variants={backgroundVariants}
         initial="hidden"
         animate="show"
@@ -141,11 +176,9 @@ export const HeroGrid = ({
         )}
       </motion.div>
 
-      {/* Overlay semi-transparente */}
       <div className="absolute inset-0 bg-black/30 z-10" />
 
       <LayoutGroup>
-        {/* Contenedor principal: stagger en hijos */}
         <motion.div
           className="relative z-20 max-w-4xl px-4 md:px-6 flex flex-col items-start space-y-8"
           variants={containerVariants}
@@ -153,7 +186,6 @@ export const HeroGrid = ({
           animate="show"
           layout
         >
-          {/* Botones de edición (admin) */}
           {isAdmin && (
             <motion.div
               className="flex gap-2 mb-4"
@@ -194,7 +226,6 @@ export const HeroGrid = ({
 
           <AnimatePresence mode="wait">
             {isEditing ? (
-              // Título editable
               <motion.div
                 key="edit-title"
                 initial="hidden"
@@ -210,7 +241,6 @@ export const HeroGrid = ({
                 />
               </motion.div>
             ) : (
-              // Título normal
               <motion.h1
                 key="title"
                 className="text-5xl md:text-7xl xl:text-8xl font-black leading-tight"
@@ -219,14 +249,13 @@ export const HeroGrid = ({
                 exit="exit"
                 variants={itemVariants}
               >
-                {updatedTitle}
+                {currentTitle}
               </motion.h1>
             )}
           </AnimatePresence>
 
           <AnimatePresence mode="wait">
             {isEditing ? (
-              // Descripción editable
               <motion.div
                 key="edit-desc"
                 initial="hidden"
@@ -236,14 +265,13 @@ export const HeroGrid = ({
                 className="w-full"
               >
                 <textarea
-                  value={updatedDescription}
+                  value={currentDescription}
                   onChange={(e) => setUpdatedDescription(e.target.value)}
                   className="hero-edit-input w-full bg-transparent text-xl md:text-2xl border-b-2 border-white/50 focus:outline-none focus:border-white resize-none"
                   rows={3}
                 />
               </motion.div>
             ) : (
-              // Descripción normal
               <motion.p
                 key="description"
                 className="text-xl md:text-2xl max-w-2xl"
@@ -252,12 +280,11 @@ export const HeroGrid = ({
                 exit="exit"
                 variants={itemVariants}
               >
-                {updatedDescription}
+                {currentDescription}
               </motion.p>
             )}
           </AnimatePresence>
 
-          {/* Botones de Call To Action */}
           {ctaButtons && (
             <motion.div
               className="flex flex-col md:flex-row gap-4"

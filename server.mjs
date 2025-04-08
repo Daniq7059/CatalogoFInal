@@ -200,26 +200,28 @@ app.post('/api/projects/upload', upload.single('image'), async (req, res) => {
     });
 });
 // 🔹 **Crear un proyecto dentro de una sección**
-app.post('/api/projects', upload.single('image'), async (req, res) => {
+app.post('/api/projects', verifyToken, upload.single('image'), async (req, res) => { 
     try {
-        const { title, description, section_id, category } = req.body;
-        const projectImage = req.file ? `/media/images/${req.file.filename}` : null; // 🔹 Si no hay imagen, será null
-
-        if (!title || !section_id || !projectImage || !category) {
+        const { title, description = "", section_id, category } = req.body;
+        const projectImage = req.file ? `/media/images/${req.file.filename}` : null;
+    
+        if (!title || !category || !section_id || !req.file) {
             return res.status(400).json({ message: "Todos los campos son obligatorios" });
         }
-
+    
         await db.execute(
             `INSERT INTO projects (project_name, project_description, project_image, category, section_id) VALUES (?, ?, ?, ?, ?)`,
             [title, description, projectImage, category, section_id]
         );
-
+    
         res.status(201).json({ message: "Proyecto creado con éxito" });
     } catch (error) {
         console.error("❌ Error al crear proyecto:", error);
         res.status(500).json({ message: "Error al crear el proyecto", error });
     }
+    
 });
+
 
 app.get('/api/projects', async (req, res) => {
     try {
