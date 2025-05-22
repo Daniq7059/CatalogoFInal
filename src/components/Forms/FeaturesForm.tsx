@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { IconSelector } from "../common/IconSelector";
+import { IconSelector, iconMap } from "../common/IconSelector";
 import {
   uploadFeatureMedia,
   createFeature,
@@ -25,6 +25,14 @@ import {
   faStar,
   faTimes,
   faChartBar,
+  faHeart,
+  faSmile,
+  faCamera,
+  faCode,
+  faSun,
+  faCloud,
+  faBolt,
+
 } from "@fortawesome/free-solid-svg-icons";
 import { useParams } from "react-router-dom";
 
@@ -56,11 +64,8 @@ interface FeaturesFormProps {
   projectId?: number;
 }
 
-const iconMap: Record<string, any> = {
-  FiZap: faStar, // 🔹 Mapea correctamente FiZap a faStar
-  Chart: faChartBar,
-  Trophy: faTrophy,
-};
+
+
 
 const FeaturesForm = ({ projectId }: FeaturesFormProps) => {
   const params = useParams<{ id?: string }>();
@@ -183,6 +188,7 @@ const FeaturesForm = ({ projectId }: FeaturesFormProps) => {
   const handleAddStat = async () => {
     if (
       !newStat.icon_key ||
+      !iconMap[newStat.icon_key as keyof typeof iconMap] ||
       !newStat.title ||
       !newStat.description ||
       !newStat.text
@@ -195,7 +201,13 @@ const FeaturesForm = ({ projectId }: FeaturesFormProps) => {
       const savedStat = await addStat(finalProjectId, newStat, "");
 
       // Actualizar el estado local directamente
-      setStats((prevStats) => [...prevStats, savedStat]);
+      setStats((prevStats) => [
+        ...prevStats,
+        {
+          ...savedStat,
+          icon_key: newStat.icon_key!, // usar el icono seleccionado directamente
+        },
+      ]);
 
       setShowStatModal(false);
       setNewStat({});
@@ -233,7 +245,10 @@ const FeaturesForm = ({ projectId }: FeaturesFormProps) => {
   };
 
   const handleEditStat = async (updatedStat: Stat) => {
-    if (!updatedStat.id) return;
+    if (!updatedStat.id || !iconMap[updatedStat.icon_key as keyof typeof iconMap]) {
+      alert("Icono no válido o falta ID.");
+      return;
+    }
 
     try {
       const updatedStatResponse = await updateStat(updatedStat.id, updatedStat);
@@ -318,21 +333,19 @@ const FeaturesForm = ({ projectId }: FeaturesFormProps) => {
       <div className="flex space-x-4 border-b border-gray-200">
         <button
           onClick={() => setActiveTab("features")}
-          className={`px-4 py-2 text-lg ${
-            activeTab === "features"
+          className={`px-4 py-2 text-lg ${activeTab === "features"
               ? "border-b-2 border-purple-500 text-purple-500"
               : "text-gray-500"
-          }`}
+            }`}
         >
           Características
         </button>
         <button
           onClick={() => setActiveTab("stats")}
-          className={`px-4 py-2 text-lg ${
-            activeTab === "stats"
+          className={`px-4 py-2 text-lg ${activeTab === "stats"
               ? "border-b-2 border-purple-500 text-purple-500"
               : "text-gray-500"
-          }`}
+            }`}
         >
           Estadísticas
         </button>
@@ -341,12 +354,20 @@ const FeaturesForm = ({ projectId }: FeaturesFormProps) => {
       {/* Estadísticas */}
       {activeTab === "stats" && (
         <div className="space-y-6">
-          <button
-            onClick={() => setShowStatModal(true)}
-            className="w-full p-4 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
-          >
-            <FontAwesomeIcon icon={faPlus} /> Agregar Estadística
-          </button>
+          {stats.length < 2 && !isEditingStat && (
+            <button
+              onClick={() => setShowStatModal(true)}
+              className="w-full p-4 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
+            >
+              <FontAwesomeIcon icon={faPlus} /> Agregar Estadística
+            </button>
+          )}
+          {stats.length >= 2 && !isEditingStat && (
+            <p className="text-red-500 text-center text-sm">
+              Solo se permiten 2 estadísticas. Elimina o edita una para agregar otra.
+            </p>
+          )}
+
 
           <AnimatePresence>
             {stats.length === 0 ? (
@@ -354,17 +375,22 @@ const FeaturesForm = ({ projectId }: FeaturesFormProps) => {
             ) : (
               stats.map((stat) => (
                 <motion.div
-                  key={stat.id}
+                  key={stat.id ?? stat.title ?? Math.random()}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
                   transition={{ duration: 0.3 }}
                   className="flex items-center space-x-4 p-3 border-b last:border-b-0"
                 >
-                  <FontAwesomeIcon
-                    icon={iconMap[stat.icon_key] || faChartBar}
-                    className="text-3xl text-primary"
-                  />
+                  {/* Icono dinámico */}
+                  {(() => {
+                    const SelectedIcon = iconMap[stat.icon_key as keyof typeof iconMap];
+                    return SelectedIcon ? (
+                      <SelectedIcon className="text-2xl text-purple-500" />
+                    ) : (
+                      <span className="text-sm text-red-500">❌ Icono no válido</span>
+                    );
+                  })()}
                   <div>
                     <h5 className="font-semibold text-gray-900">
                       {stat.title}
@@ -399,12 +425,21 @@ const FeaturesForm = ({ projectId }: FeaturesFormProps) => {
       {/* Características */}
       {activeTab === "features" && (
         <div className="space-y-6">
-          <button
-            onClick={() => setShowFeatureModal(true)}
-            className="w-full p-4 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
-          >
-            <FontAwesomeIcon icon={faPlus} /> Agregar Característica
-          </button>
+          {features.length < 3 && !isEditingFeature && (
+            <button
+              onClick={() => setShowFeatureModal(true)}
+              className="w-full p-4 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
+            >
+              <FontAwesomeIcon icon={faPlus} /> Agregar Característica
+            </button>
+          )}
+          {features.length >= 3 && !isEditingFeature && (
+            <p className="text-red-500 text-center text-sm">
+              Solo se permiten 3 características. Elimina o edita una para poder agregar una nueva.
+            </p>
+          )}
+
+
 
           <AnimatePresence>
             {features.map((feature) => (

@@ -41,6 +41,10 @@ const TeamForm: React.FC<TeamFormProps> = ({ project, setProject }) => {
   };
 
   const handleAddOrEditMember = async () => {
+    if (editingIndex === null && project.team.length >= 3) {
+      alert("Solo se permiten un máximo de 3 miembros en el equipo.");
+      return;
+    }
     if (!newMember.name || !newMember.role || !newMember.bio || !newMember.avatar || !project.id) {
       alert("Por favor, completa todos los campos obligatorios.");
       return;
@@ -256,73 +260,82 @@ const TeamForm: React.FC<TeamFormProps> = ({ project, setProject }) => {
           </motion.div>
         ))}
       </AnimatePresence>
+      {(editingIndex !== null || project.team.length < 3) ? (
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    className="bg-white rounded-xl p-6 shadow-sm border border-gray-100"
+  >
+    <h3 className="text-xl font-semibold mb-6 text-gray-800">
+      {editingIndex !== null ? "Editar Miembro" : "Agregar Nuevo Miembro"}
+    </h3>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Avatar */}
+      <div>
+        <label className="block text-sm font-medium mb-2 text-gray-600">Avatar</label>
+        <div className="border-2 border-dashed border-gray-200 rounded-lg p-4 text-center">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleImageUpload}
+            className="hidden"
+            id="new-avatar-upload"
+          />
+          <label htmlFor="new-avatar-upload" className="cursor-pointer text-primary hover:text-primary-dark">
+            {newMember.avatar ? "Cambiar Avatar" : "Subir Avatar"}
+          </label>
+          {newMember.avatar && (
+            <img src={newMember.avatar} alt="Nuevo miembro" className="mt-4 rounded-lg max-h-40 mx-auto" />
+          )}
+        </div>
+      </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-xl p-6 shadow-sm border border-gray-100"
+      {/* Datos */}
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium mb-2 text-gray-600">Nombre</label>
+          <input
+            value={newMember.name || ""}
+            onChange={(e) => setNewMember({ ...newMember, name: e.target.value })}
+            className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-2 text-gray-600">Rol</label>
+          <input
+            value={newMember.role || ""}
+            onChange={(e) => setNewMember({ ...newMember, role: e.target.value })}
+            className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-2 text-gray-600">Biografía</label>
+          <textarea
+            value={newMember.bio || ""}
+            onChange={(e) => setNewMember({ ...newMember, bio: e.target.value })}
+            className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+            rows={3}
+          />
+        </div>
+      </div>
+    </div>
+
+    <div className="flex justify-end mt-6">
+      <button
+        onClick={handleAddOrEditMember}
+        className="flex items-center gap-2 bg-primario text-white py-3 px-6 rounded-lg hover:bg-primary-dark transition"
       >
-        <h3 className="text-xl font-semibold mb-6 text-gray-800">
-          {editingIndex !== null ? "Editar Miembro" : "Agregar Nuevo Miembro"}
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium mb-2 text-gray-600">Avatar</label>
-            <div className="border-2 border-dashed border-gray-200 rounded-lg p-4 text-center">
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleImageUpload}
-                className="hidden"
-                id="new-avatar-upload"
-              />
-              <label htmlFor="new-avatar-upload" className="cursor-pointer text-primary hover:text-primary-dark">
-                {newMember.avatar ? "Cambiar Avatar" : "Subir Avatar"}
-              </label>
-              {newMember.avatar && (
-                <img src={newMember.avatar} alt="Nuevo miembro" className="mt-4 rounded-lg max-h-40 mx-auto" />
-              )}
-            </div>
-          </div>
+        <FontAwesomeIcon icon={faPlus} />
+        {editingIndex !== null ? "Guardar Cambios" : "Agregar Miembro"}
+      </button>
+    </div>
+  </motion.div>
+) : (
+  <p className="text-red-500 text-sm text-center">
+    Solo se permiten hasta 3 miembros del equipo. Elimina o edita uno para agregar otro.
+  </p>
+)}
 
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2 text-gray-600">Nombre</label>
-              <input
-                value={newMember.name || ""}
-                onChange={(e) => setNewMember({ ...newMember, name: e.target.value })}
-                className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-2 text-gray-600">Rol</label>
-              <input
-                value={newMember.role || ""}
-                onChange={(e) => setNewMember({ ...newMember, role: e.target.value })}
-                className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-2 text-gray-600">Biografía</label>
-              <textarea
-                value={newMember.bio || ""}
-                onChange={(e) => setNewMember({ ...newMember, bio: e.target.value })}
-                className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                rows={3}
-              />
-            </div>
-          </div>
-        </div>
-        <div className="flex justify-end mt-6">
-          <button
-            onClick={handleAddOrEditMember}
-            className="flex items-center gap-2 bg-primario text-white py-3 px-6 rounded-lg hover:bg-primary-dark transition"
-          >
-            <FontAwesomeIcon icon={faPlus} />
-            {editingIndex !== null ? "Guardar Cambios" : "Agregar Miembro"}
-          </button>
-        </div>
-      </motion.div>
     </div>
   );
 };

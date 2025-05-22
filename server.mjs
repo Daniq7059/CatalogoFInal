@@ -31,6 +31,7 @@ const io = new Server(server, {
 
 app.use(express.json({ limit: '1000mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1000mb' }));
+app.use("/", express.static(path.join(__dirname, "dist")));
 
 
 app.use(cors());
@@ -38,21 +39,28 @@ app.use('/media', express.static('media')); // Servir archivos multimedia
 
 // 🔹 **Conexión a la Base de Datos**
 let db;
-const connectDatabase = async () => {
+const connectDatabase = async (retries = 10) => {
+  while (retries) {
     try {
-        db = await mysql.createConnection({
-            host: process.env.DB_HOST || 'localhost',
-            user: process.env.DB_USER || 'root',
-            password: process.env.DB_PASSWORD || '',
-            database: process.env.DB_NAME || 'continental_proyectos'
-        });
-
-        console.log("✅ Conexión exitosa a la base de datos: continental_proyectos");
-    } catch (error) {
-        console.error("❌ ERROR: No se pudo conectar a la base de datos", error);
-        process.exit(1);
+      db = await mysql.createConnection({
+        host: process.env.DB_HOST,
+        user: process.env.DB_USER,
+        password: process.env.DB_PASSWORD,
+        database: process.env.DB_NAME,
+      });
+      console.log("✅ Conexión exitosa a la base de datos");
+      return;
+    } catch (err) {
+      console.error(`⏳ Intento fallido de conexión (${10 - retries + 1}):`, err.message);
+      retries--;
+      await new Promise(res => setTimeout(res, 3000)); // espera 3 segundos
     }
+  }
+  console.error("❌ No se pudo conectar a la base de datos tras varios intentos.");
+  process.exit(1);
 };
+
+
 await connectDatabase();
 
 // 🔹 **Verificar y Crear Usuario Administrador**
@@ -202,19 +210,39 @@ app.post('/api/projects/upload', upload.single('image'), async (req, res) => {
 // 🔹 **Crear un proyecto dentro de una sección**
 app.post('/api/projects', verifyToken, upload.single('image'), async (req, res) => { 
     try {
-        const { title, description = "", section_id, category } = req.body;
+        const { title, description = '', category } = req.body;
+
+        /* 🔹 section_ids puede llegar como array o string */
+        let sectionIds = [];
+
+        // 1) FormData → section_ids[]=3  section_ids[]=5
+        if (Array.isArray(req.body['section_ids[]'])) {
+        sectionIds = req.body['section_ids[]'];
+
+        // 2) JSON → { section_ids: ["3","5"] }
+        } else if (Array.isArray(req.body.section_ids)) {
+        sectionIds = req.body.section_ids;
+
+        // 3) JSON → { section_ids: "3,5" }
+        } else if (typeof req.body.section_ids === 'string') {
+        sectionIds = req.body.section_ids.split(',').map(s => s.trim());
+        }
+
         const projectImage = req.file ? `/media/images/${req.file.filename}` : null;
     
-        if (!title || !category || !section_id || !req.file) {
+        if (!title || !category || !sectionIds.length || !req.file) {
             return res.status(400).json({ message: "Todos los campos son obligatorios" });
         }
     
-        await db.execute(
-            `INSERT INTO projects (project_name, project_description, project_image, category, section_id) VALUES (?, ?, ?, ?, ?)`,
-            [title, description, projectImage, category, section_id]
-        );
+        const [result] = await db.execute(
+        `INSERT INTO projects (project_name, project_description, project_image, category)
+        VALUES (?, ?, ?, ?)`,
+        [title, description, projectImage, category]
+        ); 
+
     
-        res.status(201).json({ message: "Proyecto creado con éxito" });
+        await saveProjectSections(result.insertId, sectionIds);
+        res.status(201).json({ message: 'Proyecto creado', id: result.insertId });
     } catch (error) {
         console.error("❌ Error al crear proyecto:", error);
         res.status(500).json({ message: "Error al crear el proyecto", error });
@@ -223,150 +251,127 @@ app.post('/api/projects', verifyToken, upload.single('image'), async (req, res) 
 });
 
 
-app.get('/api/projects', async (req, res) => {
-    try {
-        const [projects] = await db.execute(`
-            SELECT id, project_name AS title, project_description AS description, 
-                   project_image AS image, category, section_id 
-            FROM projects
-        `);
+app.get('/api/projects', async (_req, res) => {
+  try {
+    const [rows] = await db.execute(`
+      SELECT p.id,
+             p.project_name        AS title,
+             p.project_description AS description,
+             p.project_image       AS image,
+             p.category,
+             GROUP_CONCAT(ps.section_id) AS section_ids
+      FROM   projects p
+      LEFT   JOIN project_sections ps ON ps.project_id = p.id
+      GROUP  BY p.id
+    `);
 
-        console.log("📢 Proyectos obtenidos:", projects);
+    const projects = rows.map(p => ({
+      ...p,
+      image: p.image ? `http://localhost:5000${p.image}` : null,
+      section_ids: p.section_ids ? p.section_ids.split(',') : []   // ["3","5"]
+    }));
 
-        const formattedProjects = projects.map(project => ({
-            ...project,
-            image: project.image ? `http://localhost:5000${project.image}` : "/placeholder.jpg" // 🔹 URL completa
-        }));
-
-        res.json(formattedProjects);
-    } catch (error) {
-        console.error("❌ Error al obtener proyectos:", error);
-        res.status(500).json({ message: "Error al obtener proyectos", error });
-    }
+    res.json(projects);
+  } catch (error) {
+    console.error('❌ Error al obtener proyectos:', error);
+    res.status(500).json({ message: 'Error al obtener proyectos', error });
+  }
 });
+
 
 // 🔹 **Actualizar un proyecto con nueva imagen**
-app.put('/api/projects/:id', upload.single('image'), async (req, res) => {
-    try {
-        const { title, description, section_id, category } = req.body;
-        const { id } = req.params;
-        
-        // 📌 Obtener la URL de la imagen si se subió una nueva
-        const projectImage = req.file ? `/media/images/${req.file.filename}` : null;
+app.put('/api/projects/:id', verifyToken, upload.single('image'), async (req, res) => {
+  try {
+    const { id } = req.params;
 
-        const updates = [];
-        const values = [];
+    let sectionIds = [];
 
-        if (title) {
-            updates.push("project_name = ?");
-            values.push(title);
-        }
-        if (description) {
-            updates.push("project_description = ?");
-            values.push(description);
-        }
-        if (category) {
-            updates.push("category = ?");
-            values.push(category);
-        }
-        if (section_id) {
-            updates.push("section_id = ?");
-            values.push(section_id);
-        }
-        if (projectImage) {
-            updates.push("project_image = ?");
-            values.push(projectImage);
-        }
-
-        if (updates.length === 0) {
-            return res.status(400).json({ message: "No hay datos para actualizar" });
-        }
-
-        values.push(id);
-
-        await db.execute(
-            `UPDATE projects SET ${updates.join(', ')} WHERE id = ?`,
-            values
-        );
-
-        res.json({ message: "Proyecto actualizado con éxito" });
-    } catch (error) {
-        res.status(500).json({ message: "Error al actualizar el proyecto", error });
+    if (Array.isArray(req.body['section_ids[]'])) {
+    sectionIds = req.body['section_ids[]'];
+    } else if (Array.isArray(req.body.section_ids)) {
+    sectionIds = req.body.section_ids;
+    } else if (typeof req.body.section_ids === 'string') {
+    sectionIds = req.body.section_ids.split(',').map(s => s.trim());
     }
+
+
+    const updates = [], values = [];
+
+    if (title)       { updates.push('project_name = ?');        values.push(title); }
+    if (description) { updates.push('project_description = ?'); values.push(description); }
+    if (category)    { updates.push('category = ?');            values.push(category); }
+    if (req.file)    { updates.push('project_image = ?');       values.push(`/media/images/${req.file.filename}`); }
+
+    if (updates.length) {
+      values.push(id);
+      await db.execute(`UPDATE projects SET ${updates.join(', ')} WHERE id = ?`, values);
+    }
+
+    // 🔗 Actualizar enlaces sección↔proyecto
+    if (sectionIds.length) await saveProjectSections(id, sectionIds);
+
+    res.json({ message: 'Proyecto actualizado' });
+  } catch (error) {
+    console.error('❌ Error al actualizar proyecto:', error);
+    res.status(500).json({ message: 'Error al actualizar el proyecto', error });
+  }
 });
+
 
 
 app.get('/api/projects/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
+  const { id } = req.params;
+  if (isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
 
-        // 🔹 Validar si el ID es un número
-        if (isNaN(id)) {
-            return res.status(400).json({ message: 'ID de proyecto inválido' });
-        }
+  try {
+    const [rows] = await db.execute(`
+      SELECT p.*, GROUP_CONCAT(s.name) AS ods_names,
+             GROUP_CONCAT(ps.section_id) AS section_ids
+      FROM   projects p
+      LEFT   JOIN project_sections ps ON ps.project_id = p.id
+      LEFT   JOIN sections        s ON s.id = ps.section_id
+      WHERE  p.id = ?
+      GROUP  BY p.id
+    `,[id]);
 
-        // 🔹 Consultar el proyecto
-        const [rows] = await db.execute(
-            `SELECT p.*, s.name AS section_name 
-             FROM projects p
-             LEFT JOIN sections s ON p.section_id = s.id
-             WHERE p.id = ?`, 
-            [id]
-        );
+    if (!rows.length) return res.status(404).json({ message: 'Proyecto no encontrado' });
 
-        // 🔹 Si no existe el proyecto, devolver 404
-        if (rows.length === 0) {
-            return res.status(404).json({ message: 'Proyecto no encontrado' });
-        }
-
-        // 🔹 Formatear el resultado
-        const project = rows[0];
-
-        // 🔹 Si la imagen está almacenada en el servidor, agregar la URL completa
-        if (project.image && !project.image.startsWith("http")) {
-            project.image = `http://localhost:5000/uploads/${project.image}`;
-        }
-
-        res.json(project);
-
-    } catch (error) {
-        console.error("❌ Error al obtener proyecto por ID:", error);
-        res.status(500).json({ message: 'Error interno del servidor', error: error.message });
-    }
+    const project = rows[0];
+    project.image       = project.project_image ? `http://localhost:5000${project.project_image}` : null;
+    project.section_ids = project.section_ids ? project.section_ids.split(',') : [];
+    delete project.project_image;   // opcional
+    res.json(project);
+  } catch (error) {
+    console.error('❌ Error al obtener proyecto:', error);
+    res.status(500).json({ message: 'Error interno', error });
+  }
 });
 
-app.get('/api/projects/last', async (req, res) => {
-    try {
-        console.log("📢 Buscando el último proyecto...");
+app.get('/api/projects/last', async (_req, res) => {
+  try {
+    const [rows] = await db.execute(`
+      SELECT p.id, p.project_name AS title, p.project_description AS description,
+             p.project_image AS image, p.category,
+             GROUP_CONCAT(ps.section_id) AS section_ids
+      FROM   projects p
+      LEFT   JOIN project_sections ps ON ps.project_id = p.id
+      GROUP  BY p.id
+      ORDER  BY p.id DESC
+      LIMIT 1
+    `);
 
-        const [rows] = await db.execute(`
-            SELECT id, project_name, project_description, project_image, category, section_id 
-            FROM projects 
-            ORDER BY id DESC 
-            LIMIT 1
-        `);
+    if (!rows.length) return res.status(404).json({ message: 'No hay proyectos' });
 
-        console.log("📌 Resultado de la consulta:", rows);
-
-        if (rows.length === 0) {
-            console.warn("⚠ No hay proyectos en la base de datos.");
-            return res.status(404).json({ message: 'No hay proyectos disponibles' });
-        }
-
-        const lastProject = rows[0];
-
-        // 🔹 Verificar que el ID sea un número válido
-        if (!lastProject.id || isNaN(lastProject.id)) {
-            console.error("❌ ERROR: ID de proyecto inválido", lastProject);
-            return res.status(400).json({ message: 'ID de proyecto inválido', lastProject });
-        }
-
-        res.json(lastProject);
-    } catch (error) {
-        console.error("❌ Error al obtener el último proyecto:", error);
-        res.status(500).json({ message: 'Error al obtener el último proyecto', error });
-    }
+    const p = rows[0];
+    p.image       = p.image ? `http://localhost:5000${p.image}` : null;
+    p.section_ids = p.section_ids ? p.section_ids.split(',') : [];
+    res.json(p);
+  } catch (error) {
+    console.error('❌ Error al obtener el último proyecto:', error);
+    res.status(500).json({ message: 'Error interno', error });
+  }
 });
+
 
 // 🔹 **Eliminar un proyecto**
 app.delete('/api/projects/:id', async (req, res) => {
@@ -397,105 +402,51 @@ app.delete('/api/projects/:id', async (req, res) => {
 });
 
 
-// 🔹 SECCION DE GRILLA
+// 🔹 SECCION DE GRILLA -------------------------------------------
+app.get('/api/sections', async (_req, res) => {
+  try {
+    /* 1️⃣  Secciones */
+    const [secs] = await db.execute(
+      'SELECT id, name, image_url FROM sections'
+    );
 
-app.get('/api/sections', async (req, res) => {
-    try {
-        // Seleccionar todos los campos necesarios
-        const [sections] = await db.execute(`
-            SELECT id, name, image_url 
-            FROM sections
-        `);
+    /* 2️⃣  Todos los proyectos con sus ODS ------------- */
+    const [rows] = await db.execute(`
+      SELECT  p.id,
+              p.project_name        AS title,
+              p.project_description AS description,
+              p.project_image       AS image,
+              p.category,
+              GROUP_CONCAT(ps.section_id) AS section_ids
+      FROM   projects p
+      LEFT   JOIN project_sections ps ON ps.project_id = p.id
+      GROUP  BY p.id
+    `);
 
-        // Obtener todos los proyectos de una sola vez
-        const [allProjects] = await db.execute(`
-            SELECT id, project_name AS title, project_description AS description, 
-                   project_image AS image, section_id
-            FROM projects
-        `);
+    const allProjects = rows.map(p => ({
+      ...p,
+      image: p.image ? `http://localhost:5000${p.image}` : null,
+      section_ids: p.section_ids ? p.section_ids.split(',') : []
+    }));
 
-        // Procesar las secciones
-        const processedSections = sections.map(section => {
-            // Limpiar el image_url para quedarnos solo con el nombre del ícono
-            let iconName = section.image_url;
-            if (iconName && iconName.includes('http://localhost:5000')) {
-                iconName = iconName.replace('http://localhost:5000', '');
-            }
+    /* 3️⃣  Empaquetar cada sección con sus proyectos ---- */
+    const data = secs.map(s => ({
+      id:    s.id,
+      name:  s.name,
+      image: s.image_url,
+      projects: allProjects.filter(p =>
+        p.section_ids.includes(String(s.id))
+      )
+    }));
 
-            return {
-                id: section.id,
-                name: section.name,
-                image: iconName, // Guardamos solo el nombre del ícono
-                projects: allProjects
-                    .filter(p => p.section_id === section.id)
-                    .map(p => ({
-                        ...p,
-                        image: p.image ? `http://localhost:5000${p.image}` : null
-                    }))
-            };
-        });
-
-        res.json(processedSections);
-    } catch (error) {
-        console.error("Error al obtener secciones:", error);
-        res.status(500).json({ message: "Error al obtener secciones", error });
-    }
+    res.json(data);
+  } catch (error) {
+    console.error('Error al obtener secciones:', error);
+    res.status(500).json({ message: 'Error al obtener secciones', error });
+  }
 });
 
 
-app.post('/api/sections', async (req, res) => {
-    try {
-      console.log("🔍 Datos recibidos en el backend:", req.body); // Debug
-  
-      // Extraer los valores correctamente
-      const { name, icon } = req.body;
-      const sectionName = typeof name === 'object' ? name.name : name;
-      const sectionIcon = typeof name === 'object' ? name.image : icon;
-  
-      if (!sectionName || !sectionIcon) {
-        return res.status(400).json({ message: "El nombre y el icono son obligatorios." });
-      }
-  
-      const [count] = await db.execute(`SELECT COUNT(*) AS total FROM sections`);
-      if (count[0].total >= 18) {
-        return res.status(400).json({ message: "Límite de 18 secciones alcanzado." });
-      }
-  
-      await db.execute(
-        `INSERT INTO sections (name, image_url) VALUES (?, ?)`,
-        [sectionName, sectionIcon] // Guardamos el icono en image_url
-      );
-  
-      res.status(201).json({ message: "Sección creada correctamente." });
-    } catch (error) {
-      console.error("❌ Error al agregar sección:", error);
-      res.status(500).json({ message: "Error al agregar sección", error });
-    }
-  });
-  
-  
-app.get('/api/sections', async (req, res) => {
-    try {
-        const [sections] = await db.execute(`SELECT id, name FROM sections`);
-
-        // Para cada sección, obtener sus proyectos relacionados
-        for (const section of sections) {
-            const [projects] = await db.execute(`
-                SELECT id, project_name AS title, project_description AS description, project_image AS image
-                FROM projects
-                WHERE section_id = ?
-            `, [section.id]);
-
-            section.projects = projects;
-        }
-
-        console.log("🟢 Secciones obtenidas:", sections);
-        res.json(sections);
-    } catch (error) {
-        console.error("❌ Error al obtener secciones:", error);
-        res.status(500).json({ message: "Error al obtener secciones", error });
-    }
-});
 
 app.put('/api/sections/:id', upload.single('image'), async (req, res) => {
     try {
@@ -902,10 +853,6 @@ app.post('/api/features/upload', upload.single('media'), async (req, res) => {
 // 🔹 **Crear un feature asegurando que los videos se guarden en `media/videos/`**
 app.post('/api/projects/:project_id/features', upload.single('media'), async (req, res) => {
     try {
-        console.log("🔍 Datos recibidos en el backend:", req.body);
-        console.log("🔍 project_id recibido en params:", req.params.project_id);
-        console.log("🔍 Archivo recibido:", req.file);
-
         const project_id = Number(req.params.project_id);
         if (!project_id || isNaN(project_id)) {
             return res.status(400).json({ message: "❌ Error: `project_id` es inválido." });
@@ -913,25 +860,23 @@ app.post('/api/projects/:project_id/features', upload.single('media'), async (re
 
         const { title, subtitle, icon_key, media_type } = req.body;
 
-        if (!title  || !media_type) {
-            return res.status(400).json({ message: "❌ Error: Título, descripción y tipo de media son obligatorios." });
+        if (!title || !media_type) {
+            return res.status(400).json({ message: "❌ Error: Título y tipo de media son obligatorios." });
         }
 
-        // ✅ Verificar si `req.file` existe antes de asignar la URL
-        const media_url = req.file ? `/media/videos/${req.file.filename}` : null;
-        console.log("✅ URL del archivo que se guardará en la BD:", media_url);
+        const media_url = req.file ? `/media/${media_type === 'image' ? 'images' : 'videos'}/${req.file.filename}` : null;
 
-        // ✅ Insertar el feature en la base de datos con `media_url`
         const [result] = await db.execute(
-            `INSERT INTO features (project_id, title, subtitle, icon_key, media_type, media_url) 
+            `INSERT INTO features (project_id, title, subtitle, icon_key, media_type, media_url)
              VALUES (?, ?, ?, ?, ?, ?)`,
-            [project_id, title, subtitle ?? null, icon_key ?? null, media_type, media_url]
+            [project_id, title, subtitle || '', icon_key || '', media_type, media_url]
         );
-        
 
-        console.log("✅ Registro insertado con éxito en la base de datos:", result);
-
-        res.status(201).json({ message: "✅ Feature creado con éxito", media_url });
+        res.status(201).json({
+            message: "✅ Feature creada con éxito",
+            id: result.insertId,
+            media_url
+        });
 
     } catch (error) {
         console.error("❌ Error al crear feature:", error);
@@ -1694,10 +1639,23 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
     const fileUrl = `/media/${req.file.destination.includes('images') ? 'images' : 'videos'}/${req.file.filename}`;
     res.json({ message: 'Archivo subido con éxito', fileUrl });
 });
+async function saveProjectSections(projectId, sectionIds = []) {
+  // Borra relaciones previas
+  await db.execute('DELETE FROM project_sections WHERE project_id = ?', [projectId]);
+  if (!sectionIds.length) return;
+  // Inserta nuevas
+  const values = sectionIds.map(id => [projectId, id]);
+  await db.query('INSERT INTO project_sections (project_id, section_id) VALUES ?', [values]);
+}
 
+app.use("/", express.static(path.join(__dirname, "dist")));
+
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+});
 
 // 🔹 **Iniciar el Servidor**
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
 });

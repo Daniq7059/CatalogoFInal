@@ -1,154 +1,142 @@
-// HeroGrid.tsx
-import { useEffect, useState, ReactNode } from "react";
+import { useEffect, useMemo, useState, ReactNode } from "react";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faEdit,
-  faSave,
-  faTimes,
-  faUpload,
-} from "@fortawesome/free-solid-svg-icons";
+import { faEdit, faSave, faTimes, faUpload } from "@fortawesome/free-solid-svg-icons";
 
 interface Project {
-  id: string;
+  id?: string;
   title: string;
   image: string;
-  // otros campos que uses...
+  description: string;
 }
 
-interface HeroSectionProps {
-  title?: string;
-  description?: string;
-  backgroundImage?: string;
-  backgroundImages?: string[]; // <-- Añadido
+type HeroGridProps = {
+  projects: Project[];
   ctaButtons?: ReactNode;
   isAdmin?: boolean;
   onSave?: (newData: { title: string; description: string; image: string }) => void;
-}
+};
 
-export const HeroGrid: React.FC<HeroSectionProps> = ({
-  title = "Título por defecto",
-  description = "Descripción por defecto",
-  backgroundImage = "",
-  backgroundImages = [], // asegúrate que este prop tenga valor por defecto
+export const HeroGrid: React.FC<HeroGridProps> = ({
+  projects = [],
   ctaButtons,
   isAdmin = false,
   onSave,
 }) => {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [featuredProject, setFeaturedProject] = useState<Project | null>(null);
-  const [currentIndex, setCurrentIndex] = useState(0); // 👈 antes del useEffect
-  const imageList = backgroundImages.filter(Boolean);   // 👈 ANTES del useEffect
-  useEffect(() => {
-    if (imageList.length <= 1) return;
+  /* -------------------- 1. Elegir 5 proyectos aleatorios ------------------- */
+  const randomProjects = useMemo<Project[]>(() => {
+    return [...projects]
+      .sort(() => Math.random() - 0.5)
+      .slice(0, Math.min(5, projects.length));
+  }, [projects]);
 
-    const interval = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % imageList.length);
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [imageList]);
-
-  // 🔄 Carrusel automático
-  useEffect(() => {
-    if (imageList.length <= 1) return;
-  
-    const interval = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % imageList.length);
-    }, 5000);
-  
-    return () => clearInterval(interval);
-  }, [imageList]);
-  
-
-  // Estados de edición
-  const [isEditing, setIsEditing] = useState(false);
-  const [updatedTitle, setUpdatedTitle] = useState(title);
-  const [updatedDescription, setUpdatedDescription] = useState(description);
+  /* ------------------------------ estado ------------------------------ */
+  const validProjects = randomProjects.filter((p) => Boolean(p.image));
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  
 
-  
-  // Manejo de imagen (simulado)
+  const featuredProject = validProjects[currentIndex];
+  const [isEditing, setIsEditing] = useState(false);
+  const [updatedTitle, setUpdatedTitle] = useState("");
+  const [updatedDescription, setUpdatedDescription] = useState("");
+  const truncateChars = (text: string, limit: number): string => {
+    if (text.length <= limit) return text;
+    return text.slice(0, limit) + "...";
+  };
+
+  const currentBackground = imagePreview || featuredProject?.image || "";
+  const currentTitle = isEditing
+    ? updatedTitle
+    : truncateChars(featuredProject?.title || "", 10);
+
+  const currentDescription = isEditing
+    ? updatedDescription
+    : truncateChars(featuredProject?.description || "", 400);
+
+
+  /* ------------------------- Carrusel automático ------------------------- */
+  useEffect(() => {
+    if (validProjects.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % validProjects.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [validProjects]);
+
+  /* ------------ Resetea campos cuando cambia la tarjeta ----------------- */
+  useEffect(() => {
+    setUpdatedTitle(featuredProject?.title || "");
+    setUpdatedDescription(featuredProject?.description || "");
+    setImagePreview(null);
+    setIsEditing(false);
+  }, [currentIndex, featuredProject]);
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setIsUploading(true);
       const file = e.target.files[0];
-      // Simular subida
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise((res) => setTimeout(res, 1000));
       const url = URL.createObjectURL(file);
       setImagePreview(url);
       setIsUploading(false);
     }
   };
 
-  // Guardar cambios
   const handleSave = () => {
     if (updatedTitle.trim() && updatedDescription.trim()) {
       onSave?.({
         title: updatedTitle,
         description: updatedDescription,
-        image: imagePreview || featuredProject?.image || backgroundImage,
+        image: imagePreview || featuredProject?.image || "",
       });
       setIsEditing(false);
     } else {
-      // Manejo de error en caso de campos vacíos
       document.querySelectorAll(".hero-edit-input").forEach((input) => {
         if (!(input as HTMLInputElement).value) {
           input.parentElement?.classList.add("animate-shake");
-          setTimeout(
-            () => input.parentElement?.classList.remove("animate-shake"),
-            500
-          );
+          setTimeout(() => input.parentElement?.classList.remove("animate-shake"), 500);
         }
       });
     }
   };
 
+  /* ------------------------------ Animaciones ------------------------------ */
   const containerVariants = {
     hidden: { opacity: 1 },
-    show: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.25,
-      },
-    },
+    show: { opacity: 1, transition: { staggerChildren: 0.25 } },
   };
 
   const backgroundVariants = {
     hidden: { opacity: 0, scale: 1.2 },
-    show: {
-      opacity: 1,
-      scale: 1,
-      transition: { duration: 1, ease: "easeOut" },
-    },
+    show: { opacity: 1, scale: 1, transition: { duration: 1, ease: "easeOut" } },
   };
 
   const itemVariants = {
     hidden: { opacity: 0, y: 80, rotate: -3 },
-    show: {
-      opacity: 1,
-      y: 0,
-      rotate: 0,
-      transition: { duration: 0.6, ease: "easeOut" },
-    },
+    show: { opacity: 1, y: 0, rotate: 0, transition: { duration: 0.6, ease: "easeOut" } },
     exit: { opacity: 0, y: -40 },
   };
 
-  const currentBackground = imagePreview || imageList[currentIndex] || backgroundImage;
-  const currentTitle = updatedTitle;
-  const currentDescription = updatedDescription;
-  
+  /* ------------------------------------------------------------------------ */
   return (
-    <section className="relative h-[60vh] flex items-center justify-start text-left text-white overflow-hidden px-4">
+    <section
+      className="relative
+                 h-[65vh] sm:h-[70vh] lg:h-[75vh] xl:h-[80vh] 2xl:h-[85vh]
+                 flex items-center justify-start text-left text-white
+                 overflow-hidden
+                 px-4 sm:px-6 lg:px-8"
+    >
+      {/* -------------------------- Imagen de fondo -------------------------- */}
       <motion.div
-        className="absolute inset-0 bg-cover bg-center z-0"
+        className="absolute inset-0 bg-cover bg-no-repeat bg-top z-0"
         style={{ backgroundImage: `url('${currentBackground}')` }}
         variants={backgroundVariants}
         initial="hidden"
         animate="show"
       >
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent z-10" />
+
         {isAdmin && (
           <motion.label
             whileHover={{ opacity: 1 }}
@@ -178,14 +166,20 @@ export const HeroGrid: React.FC<HeroSectionProps> = ({
 
       <div className="absolute inset-0 bg-black/30 z-10" />
 
+      {/* -------------------------- Contenido UI -------------------------- */}
       <LayoutGroup>
         <motion.div
-          className="relative z-20 max-w-4xl px-4 md:px-6 flex flex-col items-start space-y-8"
+          className="relative z-20
+                     max-w-3xl sm:max-w-4xl
+                     px-4 sm:px-6 lg:px-8
+                     flex flex-col items-start
+                     space-y-6 sm:space-y-8"
           variants={containerVariants}
           initial="hidden"
           animate="show"
           layout
         >
+          {/* ----------------------- Botones de edición ----------------------- */}
           {isAdmin && (
             <motion.div
               className="flex gap-2 mb-4"
@@ -224,6 +218,7 @@ export const HeroGrid: React.FC<HeroSectionProps> = ({
             </motion.div>
           )}
 
+          {/* ---------------------------- Título ---------------------------- */}
           <AnimatePresence mode="wait">
             {isEditing ? (
               <motion.div
@@ -237,13 +232,18 @@ export const HeroGrid: React.FC<HeroSectionProps> = ({
                 <input
                   value={updatedTitle}
                   onChange={(e) => setUpdatedTitle(e.target.value)}
-                  className="hero-edit-input w-full bg-transparent text-5xl md:text-7xl xl:text-8xl font-black border-b-2 border-white/50 focus:outline-none focus:border-white"
+                  className="hero-edit-input w-full bg-transparent
+                             text-4xl sm:text-5xl md:text-7xl xl:text-8xl
+                             font-black
+                             border-b-2 border-white/50
+                             focus:outline-none focus:border-white"
                 />
               </motion.div>
             ) : (
               <motion.h1
                 key="title"
-                className="text-5xl md:text-7xl xl:text-8xl font-black leading-tight"
+                className="text-4xl sm:text-5xl md:text-7xl xl:text-8xl
+                           font-black leading-tight"
                 initial="hidden"
                 animate="show"
                 exit="exit"
@@ -254,6 +254,7 @@ export const HeroGrid: React.FC<HeroSectionProps> = ({
             )}
           </AnimatePresence>
 
+          {/* ------------------------- Descripción -------------------------- */}
           <AnimatePresence mode="wait">
             {isEditing ? (
               <motion.div
@@ -265,16 +266,20 @@ export const HeroGrid: React.FC<HeroSectionProps> = ({
                 className="w-full"
               >
                 <textarea
-                  value={currentDescription}
+                  value={updatedDescription}
                   onChange={(e) => setUpdatedDescription(e.target.value)}
-                  className="hero-edit-input w-full bg-transparent text-xl md:text-2xl border-b-2 border-white/50 focus:outline-none focus:border-white resize-none"
+                  className="hero-edit-input w-full bg-transparent
+                             text-base sm:text-lg md:text-xl
+                             border-b-2 border-white/50
+                             focus:outline-none focus:border-white
+                             resize-none"
                   rows={3}
                 />
               </motion.div>
             ) : (
               <motion.p
                 key="description"
-                className="text-xl md:text-2xl max-w-2xl"
+                className="text-base sm:text-lg md:text-xl max-w-2xl"
                 initial="hidden"
                 animate="show"
                 exit="exit"
@@ -285,9 +290,10 @@ export const HeroGrid: React.FC<HeroSectionProps> = ({
             )}
           </AnimatePresence>
 
+          {/* ------------------------- CTA Buttons -------------------------- */}
           {ctaButtons && (
             <motion.div
-              className="flex flex-col md:flex-row gap-4"
+              className="flex flex-col sm:flex-row gap-4"
               initial="hidden"
               animate="show"
               exit="exit"
@@ -298,6 +304,30 @@ export const HeroGrid: React.FC<HeroSectionProps> = ({
           )}
         </motion.div>
       </LayoutGroup>
+
+      {/* ----------------------- Paginación del carrusel ---------------------- */}
+      {validProjects.length > 1 && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30">
+          <div className="flex gap-3">
+            {validProjects.map((_, idx) => (
+              <button
+                key={idx}
+                aria-label={`Mostrar slide ${idx + 1} de ${validProjects.length}`}
+                className="relative w-8 h-2 rounded-full overflow-hidden
+                           bg-white/25 focus:outline-none group"
+                aria-current={idx === currentIndex}
+                onClick={() => setCurrentIndex(idx)}
+              >
+                {/* Pill interna */}
+                <span
+                  className={`absolute inset-0 bg-white
+                               ${idx === currentIndex ? "animate-slideLoader" : "w-0"}`}
+                />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </section>
   );
 };

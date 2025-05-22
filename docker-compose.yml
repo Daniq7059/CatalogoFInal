@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: continental_land
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./media:/app/media
+
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: mariadb:10.7
+    container_name: continental_db
+    restart: always
+    environment:
+      MARIADB_ROOT_PASSWORD: 123456
+      MARIADB_DATABASE: continental_proyectos
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./continental_proyectos.sql:/docker-entrypoint-initdb.d/continental_proyectos.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p123456"]
+      interval: 5s
+      timeout: 10s
+      retries: 5
+
+  phpmyadmin:
+    image: phpmyadmin
+    container_name: continental_phpmyadmin
+    restart: always
+    ports:
+      - "8080:80"  # Accede a PhpMyAdmin en http://localhost:8080
+    environment:
+      PMA_HOST: continental_db
+      PMA_USER: root
+      PMA_PASSWORD: 123456
+    depends_on:
+      - db
+
+volumes:
+  db_data:

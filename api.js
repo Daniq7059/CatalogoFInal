@@ -81,8 +81,13 @@ export const createProject = async (projectData, imageFile, token) => {
   const formData = new FormData();
   formData.append("title", projectData.title);
   formData.append("description", projectData.description || "");
-  formData.append("section_id", String(projectData.section_id));
   formData.append("category", projectData.category);
+
+  // ✅ Secciones múltiples
+  (projectData.section_ids || []).forEach((id) => {
+    formData.append("section_ids[]", id);
+  });
+
   if (imageFile) {
     formData.append("image", imageFile);
   }
@@ -98,6 +103,7 @@ export const createProject = async (projectData, imageFile, token) => {
 };
 
 
+
 // 🔹 **Actualizar un proyecto (incluye cambio de imagen)**
 export const updateProject = async (id, projectData, file, token) => {
   try {
@@ -105,14 +111,16 @@ export const updateProject = async (id, projectData, file, token) => {
     formData.append("title", projectData.title);
     formData.append("category", projectData.category);
     formData.append("description", projectData.description);
-    formData.append("section_id", projectData.section_id);
 
-    // ✅ Si hay una nueva imagen, se agrega al `FormData`
+    (projectData.section_ids || []).forEach((id) => {
+      formData.append("section_ids[]", id);
+    });
+
     if (file) {
       formData.append("image", file);
     }
 
-    const response = await (`/projects/${id}`, formData, {
+    const response = await axios.put(`http://localhost:5000/api/projects/${id}`, formData, {
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "multipart/form-data",
@@ -125,6 +133,7 @@ export const updateProject = async (id, projectData, file, token) => {
     throw err;
   }
 };
+
 
 export const getLastProject = async () => {
   try {

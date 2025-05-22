@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useAuth } from "../../context/AuthContext";
 import { getFeatures, getStats, getProjectExtras } from "../../../api";
+import { iconMap } from "../common/IconSelector";
 import {
   faEdit,
   faTrash,
@@ -15,14 +16,17 @@ import {
   faPlay,
   faVolumeMute,
   faVolumeUp,
+  faHeart,
+  faSmile,
+  faCamera,
+  faCode,
+  faSun,
+  faCloud,
+  faBolt
 } from "@fortawesome/free-solid-svg-icons";
 
 // Mapeo de iconos para las estadísticas
-const iconMap: Record<string, any> = {
-  FiZap: faStar, // 🔹 Mapea correctamente FiZap a faStar
-  Chart: faChartBar,
-  Trophy: faTrophy,
-};
+
 
 interface Feature {
   id: number;
@@ -64,6 +68,11 @@ export const FeaturesSection = ({ projectId, onEdit, onDelete }: FeaturesSection
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const handleFeatureClick = (feature: Feature) => {
+    if (feature.media_type === "video" || feature.media_type === "image") {
+      setFeaturesVideoUrl(feature.media_url);
+    }
+  };
 
   useEffect(() => {
     if (typeof projectId === "number" && !isNaN(projectId)) {
@@ -85,11 +94,14 @@ export const FeaturesSection = ({ projectId, onEdit, onDelete }: FeaturesSection
       setExtras(extrasData);
       setStats(statsData);
 
-      // Obtener el primer video disponible
-      const videoFeature = featuresData.find((feature) => feature.media_type === "video");
-      if (videoFeature) {
-        setFeaturesVideoUrl(videoFeature.media_url);
-      }
+     // Obtener el primer feature con media disponible (imagen o video)
+const firstMediaFeature = featuresData.find(
+  (feature) => feature.media_url && (feature.media_type === "video" || feature.media_type === "image")
+);
+if (firstMediaFeature) {
+  setFeaturesVideoUrl(firstMediaFeature.media_url);
+}
+
     } catch (error) {
       console.error("❌ Error al obtener datos:", error);
     }
@@ -158,6 +170,8 @@ export const FeaturesSection = ({ projectId, onEdit, onDelete }: FeaturesSection
                       initial={{ opacity: 0, y: 50 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.8 }}
+                      onClick={() => handleFeatureClick(feature)}  // ✅ Añade esto
+
                     >
                       {user?.role === "admin" && (
                         <div className="absolute top-2 right-2 flex gap-2">
@@ -186,7 +200,7 @@ export const FeaturesSection = ({ projectId, onEdit, onDelete }: FeaturesSection
                           <h4 className="text-xl md:text-2xl font-semibold text-gray-900 mb-2">
                             {feature.title}
                           </h4>
-                      
+
                         </div>
                       </div>
                     </motion.div>
@@ -204,56 +218,65 @@ export const FeaturesSection = ({ projectId, onEdit, onDelete }: FeaturesSection
             >
               {featuresVideoUrl ? (
                 <div className="relative h-[420px] w-full rounded-2xl overflow-hidden shadow-lg group transform hover:scale-[0.98] transition-transform duration-500">
-                  <video
-                    ref={videoRef}
-                    className="w-full h-full object-cover"
-                    autoPlay
-                    muted
-                    loop
-                    playsInline
-                    src={featuresVideoUrl}
-                  >
-                    Tu navegador no soporta videos HTML5.
-                  </video>
+                  {featuresVideoUrl.endsWith(".mp4") ? (
+                    <video
+                      ref={videoRef}
+                      className="w-full h-full object-cover"
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      src={featuresVideoUrl}
+                    />
+                  ) : (
+                    <img
+                      src={featuresVideoUrl}
+                      alt="Feature"
+                      className="w-full h-full object-cover"
+                    />
+                  )}
 
-                  {/* Overlay y Controles Personalizados */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-gray-900/20 via-transparent to-transparent flex items-end p-6">
-                    <div className="w-full flex justify-between items-center">
-                      <div className="flex items-center gap-3">
+                  {/* Controles solo si es video */}
+                  {featuresVideoUrl.endsWith(".mp4") && (
+                    <div className="absolute inset-0 bg-gradient-to-t from-gray-900/20 via-transparent to-transparent flex items-end p-6">
+                      <div className="w-full flex justify-between items-center">
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={togglePlayPause}
+                            className="bg-white/10 backdrop-blur-sm rounded-full p-3 hover:bg-white/20 transition-colors"
+                          >
+                            <FontAwesomeIcon
+                              icon={isPlaying ? faPause : faPlay}
+                              className="w-6 h-6 text-white"
+                            />
+                          </button>
+                          <button
+                            onClick={toggleMute}
+                            className="bg-white/10 backdrop-blur-sm rounded-full p-3 hover:bg-white/20 transition-colors"
+                          >
+                            <FontAwesomeIcon
+                              icon={isMuted ? faVolumeMute : faVolumeUp}
+                              className="w-6 h-6 text-white"
+                            />
+                          </button>
+                        </div>
                         <button
-                          onClick={togglePlayPause}
+                          onClick={toggleFullscreen}
                           className="bg-white/10 backdrop-blur-sm rounded-full p-3 hover:bg-white/20 transition-colors"
                         >
                           <FontAwesomeIcon
-                            icon={isPlaying ? faPause : faPlay}
-                            className="w-6 h-6 text-white"
-                          />
-                        </button>
-                        <button
-                          onClick={toggleMute}
-                          className="bg-white/10 backdrop-blur-sm rounded-full p-3 hover:bg-white/20 transition-colors"
-                        >
-                          <FontAwesomeIcon
-                            icon={isMuted ? faVolumeMute : faVolumeUp}
+                            icon={isFullscreen ? faCompress : faExpand}
                             className="w-6 h-6 text-white"
                           />
                         </button>
                       </div>
-                      <button
-                        onClick={toggleFullscreen}
-                        className="bg-white/10 backdrop-blur-sm rounded-full p-3 hover:bg-white/20 transition-colors"
-                      >
-                        <FontAwesomeIcon
-                          icon={isFullscreen ? faCompress : faExpand}
-                          className="w-6 h-6 text-white"
-                        />
-                      </button>
                     </div>
-                  </div>
+                  )}
                 </div>
               ) : (
-                <p className="text-gray-500 text-center">No hay videos disponibles.</p>
+                <p className="text-gray-500 text-center">No hay imagen o video seleccionado.</p>
               )}
+
 
               {/* 🟢 SECCIÓN DE ESTADÍSTICAS */}
               <div className="flex justify-center gap-8 mt-6">
@@ -263,7 +286,17 @@ export const FeaturesSection = ({ projectId, onEdit, onDelete }: FeaturesSection
                     className="text-center flex-1 flex flex-col items-center"
                   >
                     <div className="bg-gray-50 text-primario p-3 rounded-xl inline-block hover:bg-gray-100 transition-colors">
-                      <FontAwesomeIcon icon={iconMap[stat.icon_key] || faChartBar} className="text-3xl" />
+                      {(() => {
+                        const SelectedIcon = iconMap[stat.icon_key as keyof typeof iconMap];
+                        return SelectedIcon ? (
+                          <SelectedIcon className="text-2xl text-purple-500" />
+                        ) : (
+                          <span className="text-sm text-red-500">❌ Icono no válido</span>
+                        );
+                      })()}
+
+
+
                     </div>
                     <p className="text-gray-700 mt-2 text-lg flex-grow">
                       {stat.text}

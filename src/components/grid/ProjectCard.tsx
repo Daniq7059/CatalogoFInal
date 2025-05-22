@@ -1,5 +1,6 @@
 // ProjectCard.tsx
 import * as AllIcons from "react-icons/fa";
+import { useEffect, useState } from "react";
 import { FaArrowRight } from "react-icons/fa";
 
 interface ProjectCardProps {
@@ -10,7 +11,32 @@ interface ProjectCardProps {
   odsColor?: string;
   odsId?: number;
   onClick?: () => void;
+  odsIcons?: { icon: string; color: string; title?: string }[]; // ahora incluye `title`
+
 }
+
+const truncateWords = (text: string, maxWords: number) => {
+  const words = text.split(" ");
+  return words.length > maxWords
+    ? words.slice(0, maxWords).join(" ") + "..."
+    : text;
+};
+const useIsMobile = (breakpoint = 640) => {
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== "undefined" ? window.innerWidth < breakpoint : false
+  );
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < breakpoint);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [breakpoint]);
+
+  return isMobile;
+};
+
 
 const DynamicIcon = ({
   name,
@@ -29,18 +55,24 @@ export const ProjectCard = ({
   title,
   category,
   image,
-  odsIcon = "",
-  odsColor = "#000",
+  odsIcons = [],
   onClick,
 }: ProjectCardProps) => {
+  const isMobile = useIsMobile();
   return (
     <div
-      className="
-        group relative w-full rounded-xl aspect-[4/3] overflow-visible
-        shadow-md bg-gray-100 cursor-pointer
-        transition-transform duration-300
-        hover:scale-105 hover:z-20
-      "
+    className="
+    group relative shrink-0                       /* no se encoge */
+    w-full  h-[240px]                          /* < 640 px */
+    sm:w-[200px] sm:h-[300px]                     /* ≥ 640 px */
+    md:w-[240px] md:h-[360px]                     /* ≥ 768 px */
+    lg:w-[260px] lg:h-[390px]                     /* ≥1024 px */
+    xl:w-[350px] xl:h-[420px]                     /* ≥1280 px */
+    rounded-xl overflow-hidden 
+    cursor-pointer transition-transform
+    duration-300 hover:shadow-lg hover:scale-105
+  "
+
       onClick={onClick}
     >
       <img
@@ -50,8 +82,8 @@ export const ProjectCard = ({
           rounded-xl
           absolute inset-0
           w-full h-full object-cover
-          transition-transform duration-300
-          group-hover:scale-101
+          transition-transform duration-3000
+          
           hover:rounded-xl
           overflow-hidden
         "
@@ -63,9 +95,11 @@ export const ProjectCard = ({
           opacity-0
           group-hover:opacity-100
           transition-opacity
-          duration-300
+          duration-500
           z-10
-          hover:scale-101
+          hover:scale-105
+          hover:rounded-xl
+          hover:shadow-lg 
           hover:-translate-y-2
           rounded-xl
         "
@@ -79,19 +113,42 @@ export const ProjectCard = ({
       >
         <div className="flex justify-between items-start">
           <div>
-            <h3 className="text-white font-bold text-lg">{title}</h3>
-            <p className="text-gray-200 text-sm">{category}</p>
+           <h3 className="text-white font-bold text-2xl sm:text-3xl whitespace-normal break-words leading-tight">
+  {isMobile ? truncateWords(title, 4) : title}
+</h3>
+
+<div className="flex flex-wrap gap-2 mt-3">
+  {category.split(",").map((cat, index) => (
+    <span
+      key={index}
+      className="px-3 py-1 rounded-full text-sm font-medium text-white bg-gradient-to-r from-purple-500 to-indigo-600 shadow-md animate-fade-in"
+    >
+      {cat.trim()}
+    </span>
+  ))}
+</div>
+
           </div>
-          <div className="bg-white/90 p-2 rounded-full shadow">
-            <DynamicIcon name={odsIcon} color={odsColor} size={24} />
-          </div>
+          <div className="flex gap-2 flex-wrap">
+  {odsIcons?.map((ods, i) => (
+  <div
+    key={i}
+    className="bg-white/90 p-2  rounded-full shadow"
+    title={ods.title || "ODS"}
+  >
+    <DynamicIcon name={ods.icon} color={ods.color} size={24} />
+  </div>
+))}
+
+</div>
+
         </div>
         <div className="flex justify-end">
           <button
             className="
-              flex items-center gap-2 px-4 py-2
+              flex items-center gap-2 px-4 py-4
               bg-white/90 text-gray-900 hover:bg-white
-              transition rounded-full text-sm font-medium shadow
+              transition rounded-full text-xl font-medium shadow
             "
           >
             Ver Proyecto <FaArrowRight className="text-base" />

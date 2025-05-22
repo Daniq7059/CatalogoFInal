@@ -46,7 +46,7 @@ const Navbar = ({ project, flags }: NavbarProps) => {
       const sections = [
         "hero",
         "ventajas",
-        "beneficios",
+        "Caracteristicas",
         "workflowSection",
         "equipo",
         "contacto",
@@ -77,13 +77,13 @@ const Navbar = ({ project, flags }: NavbarProps) => {
   const navLinks = [
     { name: "Inicio", target: "hero" },
     flags.showAdvantages && { name: "Ventajas", target: "ventajas" },
-    flags.showFeatures && { name: "Beneficios", target: "caracteristicas" },
+    flags.showFeatures && { name: "Caracteristicas", target: "caracteristicas" },
     flags.showWorkflow && { name: "Proceso", target: "proceso" },
     flags.showTeam && { name: "Equipo", target: "equipo" },
-    flags.showContact && { name: "Contacto", target: "contacto" },
     flags.showImpacto && { name: "Impacto", target: "impacto" },
     flags.showInvestigacion && { name: "Investigacion", target: "investigacion" },
-
+    flags.showContact && { name: "Contacto", target: "contacto" },
+    
 
   ].filter(Boolean);
   
@@ -113,7 +113,7 @@ const Navbar = ({ project, flags }: NavbarProps) => {
             <button
               key={index}
               onClick={() => handleScrollTo(link.target)}
-              className={`text-3xl font-medium transition-colors hover:text-[#6802C1] duration-300 cursor-pointer ${
+              className={`text-2xl font-blod transition-colors hover:text-[#6802C1] duration-300 cursor-pointer ${
                 scrolled ? "text-gray-800" : "text-white"
               } ${
                 activeLink === link.target
@@ -129,7 +129,7 @@ const Navbar = ({ project, flags }: NavbarProps) => {
           {user ? (
             <button
               onClick={logout}
-              className={`text-3xl font-medium transition-colors duration-300 ${
+              className={`text-2xl font-medium transition-colors duration-300 ${
                 scrolled ? "text-gray-800" : "text-white"
               } hover:text-[#6802C1]`}
             >
@@ -138,7 +138,7 @@ const Navbar = ({ project, flags }: NavbarProps) => {
           ) : (
             <Link
               to="/login"
-              className={`text-3xl font-medium transition-colors duration-300 ${
+              className={`text-2xl font-medium transition-colors duration-300 ${
                 scrolled ? "text-gray-800" : "text-white"
               } hover:text-[#6802C1]`}
             >

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+// src/pages/ProjectPage.tsx
+import React, { useState, useEffect, useLayoutEffect } from "react";
 import Navbar from "../components/Navbar";
 import Hero from "../components/proyect/HeroSection";
 import { AdvantagesSection } from "../components/proyect/AdvantagesSection";
@@ -6,7 +7,7 @@ import { FeaturesSection } from "../components/proyect/FeaturesSection";
 import WorkflowSection from "../components/proyect/WorkflowSection";
 import ImpactoSection from "../components/proyect/ImpactoSection";
 import TeamSection from "../components/proyect/TeamSection";
-import InvestigacionSection from "../components/proyect/InvestigacionSection"
+import InvestigacionSection from "../components/proyect/InvestigacionSection";
 import ContactForm from "../components/proyect/ContactForm";
 import Footer from "../components/Footer";
 import ProjectForm from "../components/Forms/ProjectForm";
@@ -17,13 +18,14 @@ import { useLocation, useParams, useNavigate } from "react-router-dom";
 import { getProjectById, deleteAdvantage, getProjectConfig } from "../../api";
 import { motion, AnimatePresence } from "framer-motion";
 
-const ProjectPage = () => {
+const ProjectPage: React.FC = () => {
   const { user, token } = useAuth();
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  const location = useLocation();
+
   const [project, setProject] = useState<ProjectData>(initialProjectData);
   const [showForm, setShowForm] = useState(false);
-  const { id } = useParams();
-  const location = useLocation();
   const [workflowVersion, setWorkflowVersion] = useState(0);
   const [showFlags, setShowFlags] = useState({
     showAdvantages: false,
@@ -31,146 +33,115 @@ const ProjectPage = () => {
     showWorkflow: false,
     showTeam: false,
     showContact: false,
-    showImpacto: false,         // 🔥 NUEVO
-    showInvestigacion: false    // 🔥 NUEVO
+    showImpacto: false,
+    showInvestigacion: false,
   });
-  const handleWorkflowUpdated = () => {
-    setWorkflowVersion((prev) => prev + 1); // 🔄 fuerza actualización en WorkflowSection
-  };
-  
-  // Cargar configuración del proyecto
-  useEffect(() => {
-    const loadConfig = async () => {
-      if (!id) return; // Asegúrate de que el ID del proyecto esté disponible
-  
-      try {
-        // Llama a la API con o sin token, dependiendo de si el usuario está logueado
-        const config = await getProjectConfig(id, token || undefined);
-        setShowFlags({
-          showAdvantages: !!config.showAdvantages,
-          showFeatures: !!config.showFeatures,
-          showWorkflow: !!config.showWorkflow,
-          showTeam: !!config.showTeam,
-          showContact: !!config.showContact,
-          showImpacto: !!config.showImpacto,               // 🔥 NUEVO
-          showInvestigacion: !!config.showInvestigacion    // 🔥 NUEVO
-        });
-      } catch (error) {
-        console.error("Error loading config:", error);
-      }
-    };
-  
-    loadConfig();
-  }, [id, token]); // Dependencias: id y token
-  // Cargar datos del proyecto
-  useEffect(() => {
-    // En el useEffect de carga del proyecto
-    const loadProjectData = async () => {
-      try {
-        if (location.state?.project) {
-          setProject(location.state.project);
-        } else if (id) {
-          const data = await getProjectById(id);
-          // Cargar ventajas separadamente si no vienen en el proyecto
-          const advantagesData = await getAdvantages(id);
-          setProject({
-            ...data,
-            advantages: advantagesData,
-          });
-        }
-      } catch (error) {
-        console.error("❌ Error al cargar proyecto:", error);
-      }
-    };
 
-    loadProjectData();
+  // Fuerza scroll arriba antes de pintar
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+  useEffect(() => {
+    async function loadConfig() {
+      if (!id) return;
+      const cfg = await getProjectConfig(id, token || undefined);
+      setShowFlags({
+        showAdvantages: !!cfg.showAdvantages,
+        showFeatures: !!cfg.showFeatures,
+        showWorkflow: !!cfg.showWorkflow,
+        showTeam: !!cfg.showTeam,
+        showContact: !!cfg.showContact,
+        showImpacto: !!cfg.showImpacto,
+        showInvestigacion: !!cfg.showInvestigacion,
+      });
+    }
+    loadConfig();
+  }, [id, token]);
+
+  useEffect(() => {
+    async function loadProject() {
+      if (location.state?.project) {
+        setProject(location.state.project as ProjectData);
+      } else if (id) {
+        const data = await getProjectById(id);
+        setProject(data);
+      }
+    }
+    loadProject();
   }, [id, location.state]);
 
-  // Handler para eliminar ventajas
-  const handleDeleteAdvantage = async (advantageId: number) => {
+  const handleDeleteAdvantage = async (advId: number) => {
     if (!user || !token) {
-      console.error("❌ Error: Usuario no autenticado o token no disponible.");
-      alert("Debe iniciar sesión para eliminar una ventaja.");
+      alert("Debes iniciar sesión para eliminar ventajas");
       return;
     }
-
-    if (!window.confirm("¿Seguro que deseas eliminar esta ventaja?")) return;
-
-    try {
-      await deleteAdvantage(project.id, advantageId, token);
-      setProject((prev) => ({
-        ...prev,
-        advantages:
-          prev.advantages?.filter((adv) => adv.id !== advantageId) || [],
-      }));
-    } catch (error) {
-      console.error("❌ Error al eliminar ventaja:", error);
-    }
-  };
-
-  const handleUpdateAdvantages = (updatedAdvantages: Advantage[]) => {
-    setProject((prev) => ({
-      ...prev,
-      advantages: updatedAdvantages,
+    if (!confirm("¿Eliminar esta ventaja?")) return;
+    await deleteAdvantage(project.id, advId, token);
+    setProject((p) => ({
+      ...p,
+      advantages: p.advantages?.filter((a) => a.id !== advId) || [],
     }));
   };
 
-  // Handler para actualizar las banderas de visibilidad
   const handleUpdateFlags = (newFlags: typeof showFlags) => {
     setShowFlags(newFlags);
   };
 
   return (
     <div className="flex flex-col min-h-screen">
-    <Navbar project={project} flags={showFlags} />
+      {/* Navbar fija */}
+      <Navbar project={project} flags={showFlags} />
 
-      <main className="flex-grow">
+      {/* Hero fuera del main, sin padding */}
+      <section id="hero" className="mt-0">
         <Hero
           title={project.title}
           image={project.image}
           description={project.description}
         />
+      </section>
 
-        {/* Sección de Ventajas */}
-
+      {/* Main para el resto de secciones */}
+      <main className="flex-grow pt-16 sm:pt-20 px-4 sm:px-6 lg:px-8">
+        {/* Ventajas */}
         <AnimatePresence>
           {showFlags.showAdvantages && (
             <motion.div
+              id="ventajas"
               key="advantages"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3 }}
+              className="mt-12"
             >
               <AdvantagesSection
                 projectId={id}
                 title={project.advantagesTitle}
                 subtitle={project.advantagesSubtitle}
                 advantages={project.advantages || []}
-                onUpdate={(updatedAdvantages) => {
-                  setProject((prev) => ({
-                    ...prev,
-                    advantages: updatedAdvantages,
-                  }));
-                }}
+                onUpdate={(upd) => setProject((p) => ({ ...p, advantages: upd }))}
                 onDelete={handleDeleteAdvantage}
               />
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Sección de Características */}
+        {/* Beneficios / Características */}
         <AnimatePresence>
           {showFlags.showFeatures && (
             <motion.div
+              id="caracteristicas"
               key="features"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3 }}
+              className="mt-16"
             >
               <FeaturesSection
-                key={project.features ? project.features.length : 0}
+                key={project.features?.length ?? 0}
                 projectId={project.id}
                 featuresTitle={project.featuresTitle}
                 featuresSubtitle={project.featuresSubtitle}
@@ -178,120 +149,77 @@ const ProjectPage = () => {
                 stats={project.stats}
                 featuresVideoUrl={project.featuresVideoUrl}
                 onEdit={() => setShowForm(true)}
-                onDelete={(id) => console.log("Eliminar característica:", id)}
-                onEditStat={(stat) => console.log("Editar estadística:", stat)}
-                onDeleteStat={(id) => console.log("Eliminar estadística:", id)}
+                onDelete={(i) => console.log("Eliminar característica:", i)}
+                onEditStat={(s) => console.log("Editar estadística:", s)}
+                onDeleteStat={(i) => console.log("Eliminar estadística:", i)}
               />
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Sección de Flujo de Trabajo */}
-        <AnimatePresence>
-          {showFlags.showWorkflow && (
-            <motion.div
-              key="workflow"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3 }}
-            >
-              <WorkflowSection
-  key={workflowVersion} // 👈 ESTO fuerza re-render TOTAL al cambiar versión
-  projectId={project.id}
-                workflow={project.workflow}
-                workflowTitle={project.workflowTitle}
-                workflowSubtitle={project.workflowSubtitle}
-                onEdit={() => setShowForm(true)}
-                onDelete={(index) => console.log("Eliminar paso:", index)}
-                version={workflowVersion} // 👈 clave para recargar cambios
+        {/* Resto de secciones: Workflow, Equipo, Impacto, Investigación, Contacto */}
+        {/* Repite la misma estructura: id + mt-16 */}
+        {showFlags.showWorkflow && (
+          <div id="proceso" className="mt-16">
+            <WorkflowSection
+              key={workflowVersion}
+              projectId={project.id}
+              workflow={project.workflow}
+              workflowTitle={project.workflowTitle}
+              workflowSubtitle={project.workflowSubtitle}
+              onEdit={() => setShowForm(true)}
+              onDelete={(i) => console.log("Eliminar paso:", i)}
+              version={workflowVersion}
+            />
+          </div>
+        )}
 
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {showFlags.showTeam && (
+          <div id="equipo" className="mt-16">
+            <TeamSection
+              project={project}
+              setProject={setProject}
+              onEdit={() => setShowForm(true)}
+              onDelete={(i) => console.log("Eliminar miembro:", i)}
+            />
+          </div>
+        )}
 
-        {/* Sección de Equipo */}
-        <AnimatePresence>
-          {showFlags.showTeam && (
-            <motion.div
-              key="team"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3 }}
-            >
-              <TeamSection
-                project={project}
-                setProject={setProject}
-                onEdit={() => setShowForm(true)}
-                onDelete={(index) => console.log("Eliminar miembro:", index)}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
-                {/* Sección de Impacto */}
+        {showFlags.showImpacto && (
+          <div id="impacto" className="mt-16">
+            <ImpactoSection projectId={Number(id)} />
+          </div>
+        )}
 
-        <AnimatePresence>
-          {showFlags.showImpacto && (
-            <motion.div
-              key="impacto"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3 }}
-            >
-              <ImpactoSection projectId={Number(id)} />
-            </motion.div>
-          )}
-        </AnimatePresence>
-                {/* Sección de Investigación */}
+        {showFlags.showInvestigacion && (
+          <div id="investigacion" className="mt-16">
+            <InvestigacionSection projectId={Number(id)} />
+          </div>
+        )}
 
-        <AnimatePresence>
-  {showFlags.showInvestigacion && (
-    <motion.div
-      key="investigaciones"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      transition={{ duration: 0.3 }}
-    >
-      <InvestigacionSection projectId={Number(id)} />
-    </motion.div>
-  )}
-</AnimatePresence>
-
-        {/* Sección de Contacto */}
-        <AnimatePresence>
-          {showFlags.showContact && (
-            <motion.div
-              key="contact"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3 }}
-            >
-              <ContactForm email={project.contactEmail} />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {showFlags.showContact && (
+          <div id="contacto" className="mt-16">
+            <ContactForm email={project.contactEmail} />
+          </div>
+        )}
       </main>
+
       <Footer />
 
-      {/* Botón de Configuración */}
+      {/* Botón admin */}
       {user?.role === "admin" && (
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => setShowForm((f) => !f)}
           className="fixed bottom-8 right-8 bg-primario text-white p-4 rounded-full shadow-lg hover:bg-purple-600 transition"
         >
           <FiSettings className="text-2xl" />
         </button>
       )}
 
-      {/* Formulario de Edición */}
+      {/* Modal edición */}
       {user?.role === "admin" && showForm && (
         <div
-          className="fixed inset-0 backdrop-blur-sm bg-white/20 flex justify-center items-center p-4 z-[1000]"
+          className="fixed inset-0 backdrop-blur-sm bg-white/20 flex items-center justify-center p-4 z-[1000]"
           onClick={(e) => e.target === e.currentTarget && setShowForm(false)}
         >
           <div
@@ -303,8 +231,7 @@ const ProjectPage = () => {
               setProject={setProject}
               onFinish={() => setShowForm(false)}
               onUpdateFlags={handleUpdateFlags}
-              onWorkflowUpdated={() => setWorkflowVersion((v) => v + 1)} // ✅ nuevo
-
+              onWorkflowUpdated={() => setWorkflowVersion((v) => v + 1)}
             />
           </div>
         </div>

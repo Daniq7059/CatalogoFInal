@@ -63,6 +63,19 @@ const AdvantagesForm = ({ projectId, token }: AdvantagesFormProps) => {
     }
   };
 
+
+
+  const handleDeleteAdvantage = async (advantageId: number) => {
+    if (!window.confirm("¿Seguro que quieres eliminar esta ventaja?")) return;
+    try {
+      await deleteAdvantage(projectId, advantageId, token);
+      setAdvantages(advantages.filter((adv) => adv.id !== advantageId));
+    } catch (error) {
+      console.error("❌ Error al eliminar ventaja:", error);
+    }
+  };
+  // ... (todo lo anterior permanece igual)
+
   const handleSaveAdvantage = async () => {
     if (!projectId) {
       console.error("❌ Error: No se ha definido un ID de proyecto.");
@@ -75,6 +88,12 @@ const AdvantagesForm = ({ projectId, token }: AdvantagesFormProps) => {
       return;
     }
 
+    // ✅ Verifica si ya hay 3 ventajas y no se está editando
+    if (!editingAdvantageId && advantages.length >= 3) {
+      alert("Solo se permiten un máximo de 3 ventajas.");
+      return;
+    }
+
     try {
       if (editingAdvantageId) {
         await updateAdvantage(projectId, editingAdvantageId, {
@@ -82,7 +101,7 @@ const AdvantagesForm = ({ projectId, token }: AdvantagesFormProps) => {
           section_subtitle: sectionSubtitle || "",
           title: newAdvantage.title,
           description: newAdvantage.description,
-          icon: newAdvantage.icon, 
+          icon: newAdvantage.icon,
           stat: newAdvantage.stat,
         }, token);
 
@@ -93,7 +112,7 @@ const AdvantagesForm = ({ projectId, token }: AdvantagesFormProps) => {
           section_subtitle: sectionSubtitle || "",
           title: newAdvantage.title,
           description: newAdvantage.description,
-          icon: newAdvantage.icon, 
+          icon: newAdvantage.icon,
           stat: newAdvantage.stat,
         }, token);
 
@@ -102,21 +121,10 @@ const AdvantagesForm = ({ projectId, token }: AdvantagesFormProps) => {
 
       const updatedAdvantages = await getAdvantages(projectId);
       setAdvantages(updatedAdvantages);
-
       setNewAdvantage({ title: "", description: "", icon: "", stat: "" });
       setEditingAdvantageId(null);
     } catch (error) {
       console.error("❌ Error al guardar ventaja:", error);
-    }
-  };
-
-  const handleDeleteAdvantage = async (advantageId: number) => {
-    if (!window.confirm("¿Seguro que quieres eliminar esta ventaja?")) return;
-    try {
-      await deleteAdvantage(projectId, advantageId, token);
-      setAdvantages(advantages.filter((adv) => adv.id !== advantageId));
-    } catch (error) {
-      console.error("❌ Error al eliminar ventaja:", error);
     }
   };
 
@@ -128,7 +136,7 @@ const AdvantagesForm = ({ projectId, token }: AdvantagesFormProps) => {
       className="space-y-6 "
     >
       <div className="border-b bg-white border-gray-200 pb-4">
-        <h2 className="text-2xl font-bold text-gray-900">Configurar Ventajas</h2>
+        <h2 className="text-2xl font-bold text-gray-900">Configurar de Ventajas</h2>
         <p className="text-gray-600 text-sm">Agrega o edita las ventajas competitivas de tu proyecto.</p>
       </div>
 
@@ -171,41 +179,53 @@ const AdvantagesForm = ({ projectId, token }: AdvantagesFormProps) => {
       </div>
 
       {/* Formulario para agregar o editar ventaja */}
-      <div className="bg-white rounded-lg shadow-sm p-6">
-        <h4 className="font-medium text-lg text-gray-900 mb-4">
-          {editingAdvantageId ? "Editar Ventaja" : "Agregar Nueva Ventaja"}
-        </h4>
-        <div className="space-y-4">
-          <input
-            placeholder="Título"
-            value={newAdvantage.title}
-            onChange={(e) => setNewAdvantage({ ...newAdvantage, title: e.target.value })}
-            className="w-full p-3 border focus:outline-0 border-gray-200 rounded-lg focus:ring-2 focus:ring-primario focus:border-transparent"
-          />
-          <textarea
-            placeholder="Descripción"
-            value={newAdvantage.description}
-            onChange={(e) => setNewAdvantage({ ...newAdvantage, description: e.target.value })}
-            className="w-full focus:outline-0 p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primario focus:border-transparent"
-          />
-          <IconSelector
-            selected={newAdvantage.icon}
-            onSelect={(icon) => setNewAdvantage({ ...newAdvantage, icon: icon })}
-          />
-          <input
-            placeholder="Estadística"
-            value={newAdvantage.stat}
-            onChange={(e) => setNewAdvantage({ ...newAdvantage, stat: e.target.value })}
-            className="w-full focus:outline-0 p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primario focus:border-transparent"
-          />
-          <button
-            onClick={handleSaveAdvantage}
-            className="w-full bg-primario text-white py-3 rounded-lg hover:bg-purple-600 transition-colors"
-          >
-            {editingAdvantageId ? "Guardar Cambios" : "Agregar Ventaja"}
-          </button>
+      {(editingAdvantageId || advantages.length < 3) && (
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <h4 className="font-medium text-lg text-gray-900 mb-4">
+            {editingAdvantageId ? "Editar Ventaja" : "Agregar Nueva Ventaja"}
+          </h4>
+          <div className="space-y-4">
+            <input
+              placeholder="Título"
+              value={newAdvantage.title}
+              onChange={(e) => setNewAdvantage({ ...newAdvantage, title: e.target.value })}
+              className="w-full p-3 border focus:outline-0 border-gray-200 rounded-lg focus:ring-2 focus:ring-primario focus:border-transparent"
+            />
+            <textarea
+              placeholder="Descripción"
+              value={newAdvantage.description}
+              onChange={(e) => setNewAdvantage({ ...newAdvantage, description: e.target.value })}
+              className="w-full focus:outline-0 p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primario focus:border-transparent"
+            />
+            <IconSelector
+              selected={newAdvantage.icon}
+              onSelect={(icon) => setNewAdvantage({ ...newAdvantage, icon: icon })}
+            />
+            <input
+              placeholder="Estadística"
+              value={newAdvantage.stat}
+              onChange={(e) => setNewAdvantage({ ...newAdvantage, stat: e.target.value })}
+              className="w-full focus:outline-0 p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primario focus:border-transparent"
+            />
+            <button
+              onClick={handleSaveAdvantage}
+              disabled={!editingAdvantageId && advantages.length >= 3}
+              className={`w-full py-3 rounded-lg transition-colors text-white ${!editingAdvantageId && advantages.length >= 3
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-primario hover:bg-purple-600'
+                }`}
+            >
+              {editingAdvantageId ? "Guardar Cambios" : "Agregar Ventaja"}
+            </button>
+          </div>
         </div>
-      </div>
+      )}
+
+      {advantages.length >= 3 && !editingAdvantageId && (
+        <p className="text-red-500 text-sm text-center">
+          Solo se permiten hasta 3 ventajas. Elimina o edita una para agregar una nueva.
+        </p>
+      )}
     </motion.div>
   );
 };

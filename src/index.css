@@ -160,3 +160,23 @@ body {
 .no-scrollbar::-webkit-scrollbar {
   display: none;                /* Chrome/Safari */
 }
+@keyframes slideLoader {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+/* Clase utilitaria para activar la animación; dura 5 s como el intervalo */
+.animate-slideLoader {
+  animation: slideLoader 5s linear forwards;
+}
+.section-heading {
+  @apply text-3xl font-extrabold text-slate-800 dark:text-white mb-8 relative;
+}
+.section-heading::after {
+  @apply content-[''] absolute -bottom-2 left-0 w-16 h-1
+  bg-gradient-to-r from-purple-500 to-indigo-600 rounded-full;
+}

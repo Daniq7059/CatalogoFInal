@@ -228,7 +228,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
           </p>
         </div>
 
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {sections.map((section) => (
             <motion.div
               key={section.key}
@@ -269,13 +269,43 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
       transition={{ duration: 0.5 }}
       className="w-full max-w-4xl mx-auto bg-white shadow-lg p-8 my-8 rounded-lg"
     >
-      <div className="mb-8">
-        <h2 className="text-3xl font-bold text-gray-900 mb-2">
-          Configuración del Proyecto
-        </h2>
-        <p className="text-gray-600">
-          Explora las distintas secciones para personalizar tu proyecto.
-        </p>
+      <div className="mb-8 flex flex justify-row items-center">
+        <div className="basis-2/3">
+          <h2 className="text-3xl font-bold text-gray-900 mb-2">
+            Configuración del Proyecto
+          </h2>
+          <p className="text-gray-600">
+            Explora las distintas secciones para personalizar tu proyecto.
+          </p>
+        </div>
+        <div className="flex j items-center mt-8 basis-1/3">
+        <button
+          onClick={goPrev}
+          disabled={currentSection === 0}
+          className="flex items-center px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition disabled:opacity-50 p-2"
+        >
+          <FiChevronLeft className="mr-2" />
+          Anterior
+        </button>
+
+        {currentSection === filteredSections.length - 1 ? (
+          <button
+            onClick={onFinish}
+            className="flex items-center px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition"
+          >
+            <FiCheck className="mr-2" />
+            Finalizar
+          </button>
+        ) : (
+          <button
+            onClick={goNext}
+            className="flex items-center px-6 py-3 bg-primario text-white rounded-lg hover:bg-purple-600 transition"
+          >
+            Siguiente
+            <FiChevronRight className="ml-2" />
+          </button>
+        )}
+      </div>
       </div>
 
       <div className="mb-8">
@@ -292,7 +322,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
         </p>
       </div>
 
-      <div className="mb-8 p-6 rounded-lg">
+      <div className="mb-4  rounded-lg">
         <h3 className="text-2xl font-bold text-gray-900 mb-4">
           {filteredSections[currentSection].name}
         </h3>

@@ -109,7 +109,7 @@ const ContactForm = () => {
   return (
     <section 
       id="contacto" 
-      className="py-24 bg-[#F8F8F8] relative overflow-hidden"
+      className="py-4 bg-[#F8F8F8] relative overflow-hidden"
       ref={sectionRef} // Referencia para detectar la visibilidad
     >
       <div className="container mx-auto px-4 relative">

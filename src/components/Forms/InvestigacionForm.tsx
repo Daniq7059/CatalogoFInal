@@ -1,4 +1,8 @@
+/* -----------------------------------------------------------
+   InvestigacionForm.tsx
+------------------------------------------------------------*/
 import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { ProjectResearch } from "../../data/project";
 import {
   getResearch,
@@ -21,13 +25,13 @@ const InvestigacionForm = ({ projectId }: InvestigacionFormProps) => {
   const [link, setLink] = useState("");
   const [copyright, setCopyright] = useState("CC");
 
-  // 🔹 Cargar investigaciones
+  /* ---------- CRUD helpers ---------- */
   const loadResearch = async () => {
     try {
       const data = await getResearch(projectId);
       setResearchList(data);
-    } catch (error) {
-      console.error("❌ Error al cargar investigaciones:", error);
+    } catch (err) {
+      console.error("❌ Error al cargar investigaciones:", err);
     }
   };
 
@@ -35,140 +39,156 @@ const InvestigacionForm = ({ projectId }: InvestigacionFormProps) => {
     loadResearch();
   }, [projectId]);
 
-  // 🔹 Cuando seleccionas una para editar
-  const handleEdit = (research: ProjectResearch) => {
-    setEditing(research);
-    setTitle(research.title);
-    setLink(research.link);
-    setCopyright(research.copyright || "CC");
+  const resetForm = () => {
+    setEditing(null);
+    setTitle("");
+    setLink("");
+    setCopyright("CC");
   };
 
-  // 🔹 Guardar nueva o editar existente
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title || !link) return alert("Título y enlace requeridos");
 
     try {
-      const data = { title, link, copyright, project_id: projectId };
-
+      const payload = { title, link, copyright, project_id: projectId };
       if (editing?.id) {
-        await updateResearch(projectId, editing.id, data, token);
-        alert("Investigación actualizada");
+        await updateResearch(projectId, editing.id, payload, token);
       } else {
-        await addResearch(projectId, data, token);
-        alert("Investigación agregada");
+        await addResearch(projectId, payload, token);
       }
-
-      // Limpiar
-      setEditing(null);
-      setTitle("");
-      setLink("");
-      setCopyright("CC");
+      resetForm();
       loadResearch();
-    } catch (error) {
-      console.error("❌ Error al guardar:", error);
-      alert("Error al guardar investigación");
+    } catch (err) {
+      console.error("❌ Error al guardar:", err);
     }
   };
 
-  // 🔹 Eliminar
-  const handleDelete = async () => {
-    if (!editing?.id) return;
+  const handleDelete = async (id: number) => {
     if (!confirm("¿Eliminar esta investigación?")) return;
-
     try {
-      await deleteResearch(projectId, editing.id, token);
-      alert("Investigación eliminada");
-      setEditing(null);
-      setTitle("");
-      setLink("");
-      setCopyright("CC");
+      await deleteResearch(projectId, id, token);
+      resetForm();
       loadResearch();
-    } catch (error) {
-      console.error("❌ Error al eliminar:", error);
-      alert("Error al eliminar investigación");
+    } catch (err) {
+      console.error("❌ Error al eliminar investigación:", err);
     }
   };
 
+  /* ---------- UI ---------- */
   return (
-    <div className="space-y-6">
-      <form onSubmit={handleSubmit} className="space-y-4 border-b pb-6">
-        <h2 className="text-lg font-semibold">
-          {editing ? "Editar investigación" : "Nueva investigación"}
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="space-y-6"
+    >
+      {/* Encabezado */}
+      <div className="border-b bg-white border-gray-200 pb-4">
+        <h2 className="text-2xl font-bold text-gray-900">
+          Configurar Investigaciones
         </h2>
+        <p className="text-gray-600 text-sm">
+          Añade, edita o elimina las investigaciones que respaldan tu proyecto.
+        </p>
+      </div>
 
-        <div>
-          <label className="block font-medium">Título</label>
-          <input
-            type="text"
-            className="w-full border px-3 py-2"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-          />
-        </div>
+      {/* Formulario */}
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white rounded-lg shadow-sm p-6 space-y-4"
+      >
+        <input
+          placeholder="Título"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className="w-full p-3 border border-black rounded-lg focus:ring-2 focus:ring-primario focus:border-transparent focus:outline-0"
+        />
+        <input
+          placeholder="Enlace (URL)"
+          type="url"
+          value={link}
+          onChange={(e) => setLink(e.target.value)}
+          className="w-full p-3 border border-black rounded-lg focus:ring-2 focus:ring-primario focus:border-transparent focus:outline-0"
+        />
+        <input
+          placeholder="Licencia (ej. CC, MIT…)"
+          value={copyright}
+          onChange={(e) => setCopyright(e.target.value)}
+          className="w-full p-3 border border-black rounded-lg focus:ring-2 focus:ring-primario focus:border-transparent focus:outline-0"
+        />
 
-        <div>
-          <label className="block font-medium">Enlace</label>
-          <input
-            type="url"
-            className="w-full border px-3 py-2"
-            value={link}
-            onChange={(e) => setLink(e.target.value)}
-          />
-        </div>
-
-        <div>
-          <label className="block font-medium">Tipo de licencia</label>
-          <input
-            type="text"
-            className="w-full border px-3 py-2"
-            value={copyright}
-            onChange={(e) => setCopyright(e.target.value)}
-          />
-        </div>
-
-        <div className="flex gap-2">
+        <div className="flex gap-4">
           <button
             type="submit"
-            className="bg-blue-600 text-white px-4 py-2 rounded"
+            className="flex-1 py-3 rounded-lg text-white bg-primario hover:bg-purple-600 transition-colors"
           >
             {editing ? "Actualizar" : "Agregar"}
           </button>
           {editing && (
             <button
               type="button"
-              onClick={handleDelete}
-              className="bg-red-600 text-white px-4 py-2 rounded"
+              onClick={resetForm}
+              className="flex-1 py-3 rounded-lg text-gray-700 bg-gray-200 hover:bg-gray-300 transition-colors"
             >
-              Eliminar
+              Cancelar
             </button>
           )}
         </div>
       </form>
 
-      {/* Lista de investigaciones */}
-      <div>
-        <h3 className="text-lg font-medium mb-2">Investigaciones guardadas</h3>
-        <ul className="space-y-2">
-          {researchList.length === 0 && (
-            <li className="text-gray-500">No hay investigaciones aún.</li>
-          )}
-          {researchList.map((item) => (
-            <li
-              key={item.id}
-              className="border p-3 rounded hover:bg-gray-100 cursor-pointer"
-              onClick={() => handleEdit(item)}
+      {/* Lista */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {researchList.map((item) => (
+          <motion.div
+            key={item.id}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="border border-gray-200 p-4 rounded-lg bg-white hover:shadow-md transition-shadow"
+          >
+            <h3 className="font-semibold text-lg text-gray-900">{item.title}</h3>
+            <a
+              href={item.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:underline break-all"
             >
-              <p className="font-semibold">{item.title}</p>
-              <p className="text-sm text-blue-600">{item.link}</p>
-              <p className="text-xs text-gray-500">
-                Derechos: {item.copyright || "CC"}
-              </p>
-            </li>
-          ))}
-        </ul>
+              {item.link}
+            </a>
+            <p className="text-xs text-gray-500 mt-1">
+              Licencia: {item.copyright || "CC"}
+            </p>
+
+            <div className="mt-3 flex gap-3">
+              <button
+                onClick={() => {
+                  setEditing(item);
+                  setTitle(item.title);
+                  setLink(item.link);
+                  setCopyright(item.copyright || "CC");
+                }}
+                className="text-primario hover:text-purple-700 transition-colors"
+                aria-label="Editar"
+              >
+                ✎
+              </button>
+              <button
+                onClick={() => handleDelete(item.id!)}
+                className="text-red-500 hover:text-red-700 transition-colors"
+                aria-label="Eliminar"
+              >
+                🗑
+              </button>
+            </div>
+          </motion.div>
+        ))}
+
+        {researchList.length === 0 && (
+          <p className="text-gray-500">Aún no hay investigaciones.</p>
+        )}
       </div>
-    </div>
+    </motion.div>
   );
 };
 
