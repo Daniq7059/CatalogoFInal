@@ -48,7 +48,7 @@ export const HeroGrid: React.FC<HeroGridProps> = ({
   const currentBackground = imagePreview || featuredProject?.image || "";
   const currentTitle = isEditing
     ? updatedTitle
-    : truncateChars(featuredProject?.title || "", 10);
+    : truncateChars(featuredProject?.title || "", 20);
 
   const currentDescription = isEditing
     ? updatedDescription
@@ -122,10 +122,11 @@ export const HeroGrid: React.FC<HeroGridProps> = ({
   return (
     <section
       className="relative
-                 h-[65vh] sm:h-[70vh] lg:h-[75vh] xl:h-[80vh] 2xl:h-[85vh]
-                 flex items-center justify-start text-left text-white
-                 overflow-hidden
-                 px-4 sm:px-6 lg:px-8"
+                 
+        min-h-[95vh] sm:min-h-[80vh] md:min-h-[85vh]
+        flex items-center justify-start text-left text-white
+        overflow-hidden
+        px-4 sm:px-6 lg:px-8"
     >
       {/* -------------------------- Imagen de fondo -------------------------- */}
       <motion.div
@@ -180,7 +181,7 @@ export const HeroGrid: React.FC<HeroGridProps> = ({
           layout
         >
           {/* ----------------------- Botones de edición ----------------------- */}
-          {isAdmin && (
+          {/* {isAdmin && (
             <motion.div
               className="flex gap-2 mb-4"
               initial={{ opacity: 0 }}
@@ -216,7 +217,7 @@ export const HeroGrid: React.FC<HeroGridProps> = ({
                 </>
               )}
             </motion.div>
-          )}
+          )} */}
 
           {/* ---------------------------- Título ---------------------------- */}
           <AnimatePresence mode="wait">
@@ -314,7 +315,7 @@ export const HeroGrid: React.FC<HeroGridProps> = ({
                 key={idx}
                 aria-label={`Mostrar slide ${idx + 1} de ${validProjects.length}`}
                 className="relative w-8 h-2 rounded-full overflow-hidden
-                           bg-white/25 focus:outline-none group"
+                           bg-white/25 focus:outline-none group cursor-pointer "
                 aria-current={idx === currentIndex}
                 onClick={() => setCurrentIndex(idx)}
               >

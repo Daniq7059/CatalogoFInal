@@ -38,7 +38,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
       id="hero"
       className="
         relative
-        h-[78vh] sm:h-[80vh] md:h-[85vh]
+        min-h-[95vh] sm:min-h-[80vh] md:min-h-[85vh]
         flex items-center
         px-4 sm:px-6 lg:px-8
         pt-20          /* 👉 compensa navbar fija */
@@ -84,7 +84,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
               font-black leading-tight
               hover:opacity-80 transition-opacity
             "
-            onClick={() => user?.role === "admin" && setIsEditingTitle(true)}
+            // onClick={() => user?.role === "admin" && setIsEditingTitle(true)}
           >
             {title}
           </motion.h1>
@@ -111,9 +111,9 @@ const HeroSection: React.FC<HeroSectionProps> = ({
               text-base sm:text-lg md:text-xl
               cursor-pointer hover:opacity-80 transition-opacity
             "
-            onClick={() =>
-              user?.role === "admin" && setIsEditingDescription(true)
-            }
+            // onClick={() =>
+            //   user?.role === "admin" && setIsEditingDescription(true)
+            // }
           >
             {description}
           </motion.p>
@@ -131,22 +131,15 @@ const HeroSection: React.FC<HeroSectionProps> = ({
             className="
               bg-[var(--color-primario)]
               hover:bg-[#5a2fc2]
-              px-6 sm:px-8 py-3 sm:py-4
-              rounded-full text-base sm:text-lg font-semibold transition
+              px-4 sm:px-6 md:px-8
+              py-2 sm:py-3 md:py-4
+              rounded-full
+              text-sm sm:text-base md:text-lg
+              font-semibold transition
+              cursor-pointer 
             "
           >
             Regresar a la grilla
-          </button>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="
-              bg-[var(--color-primario)]
-              hover:bg-[#5a2fc2]
-              px-6 sm:px-8 py-3 sm:py-4
-              rounded-full text-base sm:text-lg font-semibold transition
-            "
-          >
-            Contactar
           </button>
         </motion.div>
       </motion.div>

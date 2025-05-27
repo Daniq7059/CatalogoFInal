@@ -1,7 +1,7 @@
 // ProjectCard.tsx
-import * as AllIcons from "react-icons/fa";
 import { useEffect, useState } from "react";
 import { FaArrowRight } from "react-icons/fa";
+import { ODS_ICON_MAP } from "../common/odsIconMap";
 
 interface ProjectCardProps {
   title: string;
@@ -47,8 +47,14 @@ const DynamicIcon = ({
   color: string;
   size?: number;
 }) => {
-  const IconComponent = (AllIcons as any)[name];
-  return IconComponent ? <IconComponent color={color} size={size} /> : null;
+  const IconComponent = ODS_ICON_MAP[name as keyof typeof ODS_ICON_MAP];
+return IconComponent ? (
+  <IconComponent color={color} size={size} />
+) : (
+  <div className="text-xs text-red-500 italic">
+    Ícono inválido: <span className="font-mono">{name}</span>
+  </div>
+);
 };
 
 export const ProjectCard = ({
@@ -130,15 +136,14 @@ export const ProjectCard = ({
 
           </div>
           <div className="flex gap-2 flex-wrap">
-  {odsIcons?.map((ods, i) => (
-  <div
-    key={i}
-    className="bg-white/90 p-2  rounded-full shadow"
-    title={ods.title || "ODS"}
-  >
-    <DynamicIcon name={ods.icon} color={ods.color} size={24} />
-  </div>
+ {odsIcons
+  ?.filter((ods) => ods.icon && ods.icon in ODS_ICON_MAP)
+  .map((ods, i) => (
+    <div key={i} className="bg-white/90 p-2 rounded-full shadow" title={ods.title || "ODS"}>
+      <DynamicIcon name={ods.icon} color={ods.color} size={24} />
+    </div>
 ))}
+
 
 </div>
 

@@ -174,7 +174,7 @@ if (firstMediaFeature) {
 
                     >
                       {user?.role === "admin" && (
-                        <div className="absolute top-2 right-2 flex gap-2">
+                        <div className=" top-2 right-2 flex gap-2">
                           <button
                             onClick={() => onEdit(feature.id)}
                             className="p-1 hover:text-blue-600"
@@ -190,19 +190,19 @@ if (firstMediaFeature) {
                         </div>
                       )}
 
-                      <div className="flex items-center space-x-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-2 sm:space-y-0">
                         <div className="bg-purple-50 p-3 rounded-lg group-hover:bg-purple-100 transition-colors">
-                          <span className="text-[var(--color-primario)] text-xl font-semibold">
+                          <span className="text-[var(--color-primario)] text-xl sm:text-xl md:text-xl font-semibold">
                             {feature.subtitle}
                           </span>
                         </div>
                         <div>
-                          <h4 className="text-xl md:text-2xl font-semibold text-gray-900 mb-2">
+                          <h4 className="p-3 text-xl sm:text-xl md:text-2xl font-semibold text-gray-900 mb-2">
                             {feature.title}
                           </h4>
-
                         </div>
                       </div>
+
                     </motion.div>
                   ))
                 )}

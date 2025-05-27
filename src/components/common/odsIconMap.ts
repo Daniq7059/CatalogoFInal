@@ -1,0 +1,38 @@
+// src/common/odsIconMap.ts
+import {
+  FaGlobeAmericas,
+  FaUserShield,
+  FaHandHoldingHeart,
+  FaBook,
+  FaVenus,
+  FaTint,
+  FaSolarPanel,
+  FaBriefcase,
+  FaIndustry,
+  FaBalanceScale,
+  FaCity,
+  FaRecycle,
+  FaLeaf,
+  FaFish,
+  FaPeace,
+  FaHandshake,
+} from "react-icons/fa";
+
+export const ODS_ICON_MAP = {
+  FaGlobeAmericas,
+  FaUserShield,
+  FaHandHoldingHeart,
+  FaBook,
+  FaVenus,
+  FaTint,
+  FaSolarPanel,
+  FaBriefcase,
+  FaIndustry,
+  FaBalanceScale,
+  FaCity,
+  FaRecycle,
+  FaLeaf,
+  FaFish,
+  FaPeace,
+  FaHandshake,
+};

@@ -112,7 +112,7 @@ export const ProjectSlider: React.FC<ProjectSliderProps> = ({
       className="relative my-8 md:my-10 lg:my-5 px-4 sm:px-6 lg:px-0"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
-    >
+    > 
       {/* ------------------------- Título ------------------------ */}
       <h2 className="
             text-2xl sm:text-3xl lg:text-4xl 

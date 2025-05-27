@@ -79,9 +79,10 @@ export const uploadProjectImage = async (file, token) => {
 // 🔹 **Crear un proyecto con imagen**
 export const createProject = async (projectData, imageFile, token) => {
   const formData = new FormData();
-  formData.append("title", projectData.title);
+formData.append("title", projectData.title || "");
   formData.append("description", projectData.description || "");
-  formData.append("category", projectData.category);
+formData.append("category", projectData.category || "");
+console.log("Enviando update con:", { id, projectData, file, token });
 
   // ✅ Secciones múltiples
   (projectData.section_ids || []).forEach((id) => {

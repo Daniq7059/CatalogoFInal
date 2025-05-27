@@ -1,7 +1,9 @@
 // GridPage.tsx
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Footer from "../components/Footer";
 import { HeroGrid } from "../components/grid/HeroGrid";
+import HeaderBar from "../components/grid/HeaderBar";
 import { ProjectSlider } from "../components/grid/ProjectSlider";
 import { useAuth } from "../context/AuthContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -76,19 +78,19 @@ const getOdsIconsForProject = (
     ? matchingSections.filter((s) => onlyTheseOdsNames.includes(s.name))
     : matchingSections;
 
-  return filteredSections
-    .map((section) => {
-      const ods = ODS_CATEGORIES.find((ods) => ods.title === section.name);
-      if (!ods) return null;
+ return filteredSections
+  .map((section) => {
+    const ods = ODS_CATEGORIES.find((ods) => ods.title === section.name);
+    if (!ods) return null;
 
-      const iconName = ods.icon.type.displayName || ods.icon.type.name;
-      return {
-        icon: iconName,
-        color: ods.color,
-        title: ods.title,
-      };
-    })
-    .filter(Boolean);
+    return {
+      icon: ods.icon_key, // ✅ nombre válido directamente
+      color: ods.color,
+      title: ods.title,
+    };
+  })
+  .filter(Boolean);
+
 };
 
 
@@ -186,17 +188,18 @@ const projectData: Partial<Project> = {
 
 
 
-    if (
-      !projectData.title ||
-      !projectData.category ||
-      (projectData.section_ids?.length ?? 0) === 0 ||
-      !selectedImage
-    ) {
-      alert(
-        "⚠ Completa título, categoría, ODS y sube imagen antes de guardar."
-      );
-      return;
-    }
+     const isEdit = !!editingProjectId;
+
+  if (
+    !projectData.title ||
+    !projectData.category ||
+    (projectData.section_ids?.length ?? 0) === 0 ||
+    (!selectedImage && !isEdit)
+  ) {
+    alert("⚠ Completa título, categoría, ODS y sube imagen antes de guardar.");
+    return;
+  }
+
 
     try {
       if (editingProjectId) {
@@ -211,21 +214,27 @@ const projectData: Partial<Project> = {
     }
   };
 
-  const handleEditProject = (project: Project) => {
-      setNewProject({
-        title: project.title,
-        category: project.category,
-        description: project.description,
-        section_ids: project.section_ids,
-        image: project.image,
-      });
-      setImagePreview(
-        project.image.startsWith("http")
-          ? project.image
-          : `http://localhost:5000${project.image}`
-      );
-      setShowAddProjectModal(true);
-    };
+const handleEditProject = (project: Project) => {
+  setNewProject({
+    title: project.title,
+    category: project.category,
+    description: project.description,
+    section_ids: project.section_ids,
+    image: project.image,
+  });
+
+  // ✅ Mostrar sección principal (si hay más de una, solo muestra la primera)
+  setSelectedSectionId(project.section_ids?.[0] || null);
+
+  setImagePreview(
+    project.image.startsWith("http")
+      ? project.image
+      : `http://localhost:5000${project.image}`
+  );
+  setEditingProjectId(project.id); // ✅ importante para que actualice y no cree uno nuevo
+  setShowAddProjectModal(true);
+};
+
 
 
   const resetProjectModal = () => {
@@ -255,15 +264,12 @@ const projectData: Partial<Project> = {
   }));
 
 
-   useEffect(() => {
-    if (showAddProjectModal) {
-      setNewProject((prev) => ({ ...prev, section_ids: [] }));
-    }
-  }, [showAddProjectModal]);
+  
 
   /* ============================ Render =========================== */
   return (
     <main className="overflow-visible">
+      <HeaderBar />
       {/* Hero */}
       <div className="relative">
         <HeroGrid projects={heroProjects} isAdmin={user?.role === "admin"} />
@@ -274,7 +280,7 @@ const projectData: Partial<Project> = {
       <section className="flex gap-4 px-4 sm:px-6 lg:px-8 mt-6">
         <button
           onClick={() => setSelectedODSTitles([])}
-          className={`px-6 sm:px-8 py-4 rounded-lg text-base sm:text-lg transition-all ${
+          className={`px-6 sm:px-8 py-4 rounded-lg text-base sm:text-lg transition-all cursor-pointer  ${
             selectedODSTitles.length === 0
               ? "bg-[var(--color-primario)] text-white"
               : "bg-white text-gray-700 ring-2 ring-[var(--color-primario)]"
@@ -285,7 +291,7 @@ const projectData: Partial<Project> = {
 
         <button
           onClick={() => setShowODSFilterModal(true)}
-          className={`px-6 sm:px-8 py-4 rounded-lg text-base sm:text-lg transition-all ${
+          className={`px-6 sm:px-8 py-4 rounded-lg text-base sm:text-lg transition-all cursor-pointer ${
             selectedODSTitles.length > 0
               ? "bg-[var(--color-primario)] text-white"
               : "bg-white text-gray-700 ring-2 ring-[var(--color-primario)]"
@@ -296,7 +302,7 @@ const projectData: Partial<Project> = {
 
         {/* Botón agregar proyecto */}
         {user?.role === "admin" && (
-          <div className="flex justify-end p-4">
+          <div className="flex justify-end p-4 ">
             <button
               onClick={() => {
                 if (sections.length === 0) {
@@ -313,7 +319,7 @@ const projectData: Partial<Project> = {
                 });
                 setShowAddProjectModal(true);
               }}
-              className="p-2 bg-blue-500 text-white rounded-full hover:bg-blue-700 transition"
+              className="p-2 bg-blue-500 text-white rounded-full hover:bg-blue-700 transition cursor-pointer"
             >
               <FiPlus className="text-xl" />
             </button>
@@ -322,49 +328,80 @@ const projectData: Partial<Project> = {
       </section>
 
       {/* Listado secciones */}
-    <AnimatePresence>
+<AnimatePresence>
   {selectedODSTitles.length > 0 ? (
-    filteredProjects.length > 0 && (() => {
-      const enrichedFilteredProjects = filteredProjects.map((p) => {
-        const matchedODS = sections
-          .filter((s) => p.section_ids.includes(s.id))
-          .map((s) => s.name)
-          .filter((odsName) => selectedODSTitles.includes(odsName));
+    filteredProjects.length > 0 ? (
+      (() => {
+        const enrichedFilteredProjects = filteredProjects.map((p) => {
+          const matchedODS = sections
+            .filter((s) => p.section_ids.includes(s.id))
+            .map((s) => s.name)
+            .filter((odsName) => selectedODSTitles.includes(odsName));
 
-        return {
-          ...p,
-          category:
-            selectedODSTitles.length === 1
-              ? matchedODS[0]
-              : matchedODS.join(", "),
-odsIcons: getOdsIconsForProject(p, selectedODSTitles),
+          return {
+            ...p,
+            category:
+              selectedODSTitles.length === 1
+                ? matchedODS[0]
+                : matchedODS.join(", "),
+            odsIcons: getOdsIconsForProject(p, selectedODSTitles),
+          };
+        });
 
-        };
-      });
+        return (
+          <motion.div
+            key="filtered"
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -30 }}
+            transition={{ duration: 0.4 }}
+            className="p-4 sm:p-6 lg:p-8"
+          >
+            <ProjectSlider
+              section={{
+                id: "filtered",
+                name: "Resultados del Filtro",
+                projects: enrichedFilteredProjects,
+              }}
+              projects={enrichedFilteredProjects}
+              onDeleteProject={handleDeleteProject}
+              onEditProject={handleEditProject}
+              isAdmin={user?.role === "admin"}
+            />
+          </motion.div>
+        );
+      })()
+    ) : (
+      <motion.div
+  key="no-results"
+  initial={{ opacity: 0, y: 30 }}
+  animate={{ opacity: 1, y: 0 }}
+  exit={{ opacity: 0, y: 30 }}
+  transition={{ duration: 0.3 }}
+  className="px-6 py-10 sm:px-8 lg:px-10 mt-10 text-center text-gray-600 border border-dashed border-gray-300 rounded-xl shadow-md bg-white"
+>
+  <div className="flex flex-col items-center justify-center space-y-4">
+    <svg
+      className="w-16 h-16 text-gray-400"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z"
+      />
+    </svg>
+    <p className="text-xl font-semibold">Sin resultados</p>
+    <p className="text-sm text-gray-500 max-w-md">
+      No se encontraron proyectos que coincidan con los filtros seleccionados. Intenta ajustar tus criterios o eliminar algunos filtros para ver más resultados.
+    </p>
+  </div>
+</motion.div>
 
-      return (
-        <motion.div
-          key="filtered"
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -30 }}
-          transition={{ duration: 0.4 }}
-          className="p-4 sm:p-6 lg:p-8"
-        >
-          <ProjectSlider
-            section={{
-              id: "filtered",
-              name: "Resultados del Filtro",
-              projects: enrichedFilteredProjects,
-            }}
-            projects={enrichedFilteredProjects}
-            onDeleteProject={handleDeleteProject}
-            onEditProject={handleEditProject}
-            isAdmin={user?.role === "admin"}
-          />
-        </motion.div>
-      );
-    })()
+    )
   ) : (
     sections
       .filter((section) => section.projects.length > 0)
@@ -379,10 +416,10 @@ odsIcons: getOdsIconsForProject(p, selectedODSTitles),
         >
           <ProjectSlider
             section={section}
-projects={section.projects.map((p) => ({
-          ...p,
-          odsIcons: getOdsIconsForProject(p, section.name), // ← CORRECTO
-        }))}
+            projects={section.projects.map((p) => ({
+              ...p,
+              odsIcons: getOdsIconsForProject(p, section.name),
+            }))}
             onDeleteProject={handleDeleteProject}
             onEditProject={handleEditProject}
             isAdmin={user?.role === "admin"}
@@ -393,16 +430,16 @@ projects={section.projects.map((p) => ({
 </AnimatePresence>
 
 
-
+      <Footer />
       {/* Botón agregar ODS */}
-      {user?.role === "admin" && (
+      {/* {user?.role === "admin" && (
         <button
           onClick={() => setShowAddODSModal(true)}
           className="mt-10 px-6 py-3 flex items-center ml-4 bg-[var(--color-primario)] text-white rounded-full hover:bg-[#5a2fc2] transition"
         >
           <FiPlus className="mr-2" /> Agregar ODS
         </button>
-      )}
+      )} */}
 
       {/* Modal crear ODS */}
       <ODSSelectorModal
@@ -421,18 +458,18 @@ projects={section.projects.map((p) => ({
         onClearFilters={() => setSelectedODSTitles([])}
         mode="filter"
       />
-
+      
       {/* Botón login/logout */}
       <button
         onClick={user ? logout : () => navigate("/login")}
-        className="fixed bottom-4 right-4 p-4 bg-[var(--color-primario)] text-white rounded-full shadow-lg hover:bg-[#5a2fc2] transition"
+        className="fixed bottom-4 right-4 p-4 bg-[var(--color-primario)] text-white rounded-full shadow-lg hover:bg-[#5a2fc2] transition cursor-pointer"
       >
         {user ? <FiLogOut className="text-2xl" /> : <FiLogIn className="text-2xl" />}
       </button>
 
       {/* Modal agregar/editar proyecto */}
       {showAddProjectModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-110">
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -505,27 +542,19 @@ projects={section.projects.map((p) => ({
                 Haz clic en las casillas o filas para seleccionar varios ODS.
               </p>
             </label>
-
-<div className="flex justify-end mt-3">
-  <button
-    type="button"
-    onClick={() => setNewProject((p) => ({ ...p, section_ids: [] }))}
-    className="
-      px-3 py-2 text-sm rounded-md
-      bg-gray-200 hover:bg-gray-300
-      text-gray-700 transition
-    "
-  >
-    Limpiar selección
-  </button>
-</div>
-
-
-
-
-
-
-
+            <div className="flex justify-end mt-3">
+              <button
+                type="button"
+                onClick={() => setNewProject((p) => ({ ...p, section_ids: [] }))}
+                className="
+                  px-3 py-2 text-sm rounded-md
+                  bg-gray-200 hover:bg-gray-300
+                  text-gray-700 transition
+                "
+              >
+                Limpiar selección
+              </button>
+            </div>
             {/* imagen */}
             <div className="flex flex-col items-center">
               <label className="w-full p-3 border rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 text-center">
@@ -579,7 +608,9 @@ projects={section.projects.map((p) => ({
             </div>
           </motion.div>
         </div>
+        
       )}
     </main>
+    
   );
 }

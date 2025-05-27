@@ -47,6 +47,7 @@ const connectDatabase = async (retries = 10) => {
         user: process.env.DB_USER,
         password: process.env.DB_PASSWORD,
         database: process.env.DB_NAME,
+        port: process.env.DB_PORT,
       });
       console.log("✅ Conexión exitosa a la base de datos");
       return;
@@ -294,6 +295,7 @@ app.put('/api/projects/:id', verifyToken, upload.single('image'), async (req, re
     sectionIds = req.body.section_ids.split(',').map(s => s.trim());
     }
 
+    const { title, description, category } = req.body;
 
     const updates = [], values = [];
 

@@ -107,16 +107,16 @@ export const AdvantagesSection = ({
 
                       {/* Botón Eliminar con confirmación */}
                       <button
-  onClick={() => {
-    if (window.confirm("¿Estás seguro de eliminar esta ventaja?")) {
-      onDelete(advantage.id); // ✅ Se asegura que `onDelete` recibe el `id` correcto
-    }
-  }}
-  className="p-1 hover:text-red-600 transition-colors"
-  aria-label="Eliminar"
->
-  <FiTrash />
-</button>
+                        onClick={() => {
+                          if (window.confirm("¿Estás seguro de eliminar esta ventaja?")) {
+                            onDelete(advantage.id); // ✅ Se asegura que `onDelete` recibe el `id` correcto
+                          }
+                        }}
+                        className="p-1 hover:text-red-600 transition-colors"
+                        aria-label="Eliminar"
+                      >
+                        <FiTrash />
+                      </button>
 
 
                     </div>
@@ -150,24 +150,36 @@ export const AdvantagesSection = ({
 
       {/* 🔹 Formulario de edición en un modal flotante */}
       {editingAdvantage && (
-        <div
-          className="fixed inset-0 backdrop-blur-sm bg-white/20 flex justify-center items-center p-4 z-[1000]"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setEditingAdvantage(null);
-          }}
-        >
-          <div
-            className="w-full max-w-2xl bg-white rounded-lg shadow-2xl p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <AdvantagesForm
-              projectId={projectId}
-              advantage={editingAdvantage}
-              onClose={() => setEditingAdvantage(null)}
-            />
-          </div>
-        </div>
-      )}
+  /* ───── Overlay ───── */
+  <div
+    className="
+      fixed inset-0 z-[1000]
+      flex items-center justify-center      /* ← centrado vertical y horizontal */
+      backdrop-blur-sm bg-white/20
+      p-4                                   /* margen respecto a los bordes */
+    "
+    onClick={(e) => e.target === e.currentTarget && setEditingAdvantage(null)}
+  >
+    {/* ───── Panel blanco ───── */}
+    <div
+      className="
+        w-full max-w-2xl
+        bg-white rounded-lg shadow-2xl
+        max-h-[85vh]                        /* alto máximo (ajusta a gusto) */
+        overflow-y-auto                     /* scroll interno */
+        p-6                                 /* padding interno del formulario */
+      "
+      onClick={(e) => e.stopPropagation()}
+    >
+      <AdvantagesForm
+        projectId={projectId}
+        advantage={editingAdvantage}
+        onClose={() => setEditingAdvantage(null)}
+      />
+    </div>
+  </div>
+)}
+
     </section>
   );
 };

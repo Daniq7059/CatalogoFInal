@@ -4,7 +4,7 @@ import { Navigation, Pagination } from "swiper/modules";
 import { getWorkflow, getWorkflowSteps, addWorkflowStep, updateWorkflowStep, deleteWorkflowStep } from "../../../api";
 import "swiper/swiper-bundle.css";
 import styles from "../../WorkflowSection.module.css";
-
+  
 interface WorkflowSectionProps {
   projectId: number;
   version?: number; // ✅ nuevo prop opcional
