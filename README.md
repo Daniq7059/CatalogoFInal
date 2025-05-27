@@ -1,56 +1,36 @@
-# React + TypeScript + Vite
+🧩 Descripción Breve
+Esta aplicación permite a universidades o instituciones académicas gestionar, almacenar y visualizar proyectos realizados por estudiantes. Está enfocada en facilitar la organización por secciones (departamentos, semestres, áreas temáticas) y la carga de imágenes y descripciones detalladas de cada proyecto.
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+🎯 Objetivo
+Facilitar la administración y visibilidad de proyectos académicos como parte de los sistemas de sostenibilidad, innovación y desarrollo académico.
 
-Currently, two official plugins are available:
+🧠 Orientación Académica y Sostenible
+🎓 Entorno: Universidad / Instituciones educativas
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+🌱 Enfoque: Proyectos alineados a los Objetivos de Desarrollo Sostenible (ODS)
 
-## Expanding the ESLint configuration
+🗂️ Organización: Clasificación por categorías (tecnología, salud, medioambiente, etc.) y secciones académicas
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+🖼️ Multimedia: Soporta carga de imágenes para mejor presentación
 
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
-```
+🧑‍💻 Desarrollo
+Frontend: React + TypeScript (GridPage.tsx)
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Backend: Node.js + Express + MySQL
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Autenticación: JWT
 
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-})
-```
-# conti-grilla
-# conti-grilla
+Subida de archivos: multer
+
+ORM/DB driver: mysql2
+
+🚀 Despliegue con Docker
+
+
+
+---------IMPORTANTE---------
+
+se debe cambiar el .env debido a que esta esta orientado a crendenciales del desarrollador.
+
+📄 Credenciales en .env (Backend) de acuerdo al archivo docker para que coincidan las misma credenciales para la conexion de la base de datos en el despliegue
+Archivo: backend/.env
